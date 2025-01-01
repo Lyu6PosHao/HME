@@ -1,0 +1,5 @@
+torch==2.5.1
+torch-geometric==2.6.1
+transformers==4.43.1
+deepspeed==0.15.2
+unimol-tools
