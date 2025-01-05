@@ -104,13 +104,10 @@ Others: [Meta-llama](https://huggingface.co/meta-llama), [GraphFP](https://githu
 ## J. Citation
 If you find our repo helpful, please consider citing us.
 ```BibTex
-@misc{lv2024navigatingchemicallinguisticsharingspace,
-      title={Navigating Chemical-Linguistic Sharing Space with Heterogeneous Molecular Encoding}, 
-      author={Liuzhenghao Lv and Hao Li and Yu Wang and Zhiyuan Yan and Zijun Chen and Zongying Lin and Li Yuan and Yonghong Tian},
-      year={2024},
-      eprint={2412.20888},
-      archivePrefix={arXiv},
-      primaryClass={cs.CE},
-      url={https://arxiv.org/abs/2412.20888}, 
+@article{lv2024navigating,
+  title={Navigating Chemical-Linguistic Sharing Space with Heterogeneous Molecular Encoding},
+  author={Lv, Liuzhenghao and Li, Hao and Wang, Yu and Yan, Zhiyuan and Chen, Zijun and Lin, Zongying and Yuan, Li and Tian, Yonghong},
+  journal={arXiv preprint arXiv:2412.20888},
+  year={2024}
 }
 ```
