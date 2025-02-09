@@ -15,7 +15,7 @@ port=$((number + 29504))      #port number for torchrun
 output_path=path/to/save/file/${save_specify}_${task_type}.txt  #where to save the output file
 
 
-CUDA_VISIBLE_DEVICES=$((number)) torchrun --nnodes 1 --nproc_per_node 1 --master_port $port infer.py \
+CUDA_VISIBLE_DEVICES=$((number)) torchrun --nnodes 1 --nproc_per_node 1 --master_port $port ../infer.py \
     --model_name_or_path $model \
     --max_length $max_length \
     --data_path $data_path \
