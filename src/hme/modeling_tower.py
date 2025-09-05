@@ -273,11 +273,13 @@ class Molecule2DTower(nn.Module):
             drop_ratio=0.1,
             gnn_type="gin",
         )
+        import importlib
+        init_checkpoint = importlib.resources.files("hme.molecule_towers") / "model1.pth"
         return GNN_graphpred(
             emb_dim=300,
             graph_pooling="mean",
             molecule_node_model=molecule_node_model,
-            init_checkpoint="./model1.pth",
+            init_checkpoint=init_checkpoint,
         )
 
     def forward(self, batch: Union[Dict[str, str], str]) -> torch.Tensor:

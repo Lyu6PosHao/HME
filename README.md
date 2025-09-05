@@ -1,109 +1,121 @@
+# Heterogeneous Molecular Encoding (HME)
 
-<h2 align="center"> <a href="https://arxiv.org/abs/2412.20888">Navigating Chemical-Linguistic Sharing Space with Heterogeneous Molecular Encoding</a></h2>
-<h5 align="center">
-    
-[![arXiv](https://img.shields.io/badge/Arxiv-2402.16445-b31b1b.svg?logo=arXiv)](https://arxiv.org/abs/2412.20888)
-[![Model](https://img.shields.io/badge/🤗-Model_Checkpoints-blue.svg)](https://huggingface.co/collections/GreatCaptainNemo/hme-checkpoints-6772a4b9d3a8d679c97f3bc3)
-[![Datasets](https://img.shields.io/badge/🤗-Dataset_Download-blue.svg)](https://huggingface.co/datasets/GreatCaptainNemo/HME_dataset)
-<!-- [![License](https://img.shields.io/badge/License-Apache%202.0-yellow)](https://github.com/Lyu6PosHao/ProLLaMA/blob/main/LICENSE) --> <br>
+<div align="center">
 
-</h5>
+[![arXiv](https://img.shields.io/badge/Arxiv-2412.20888-b31b1b.svg?logo=arXiv)](https://arxiv.org/abs/2412.20888)
+[![Model Checkpoints](https://img.shields.io/badge/Model-Checkpoints-blue)](https://huggingface.co/collections/GreatCaptainNemo/hme-checkpoints-6772a4b9d3a8d679c97f3bc3)
+[![Dataset on Zenodo](https://img.shields.io/badge/Dataset-Zenodo-blue.svg?logo=zenodo)](https://doi.org/10.5281/zenodo.16963804)
+[![License](https://img.shields.io/badge/License-Apache%202.0-yellow)](./LICENSE)
 
-## A. Update Log
-* [2024/12/31] Opensource the whole datasets, some model checkpoints and codes.
+</div>
 
-
-## B. Glance
-Recent advances in **Chemical Language Models (CLMs)** have shown great promise in bridging molecular structures and natural language for drug discovery and molecular comprehension. However, current approaches face significant challenges due to inherent biases in different molecular representations, limiting their effectiveness in capturing **comprehensive molecular information** and achieving **reliable molecular design**. Building upon recent developments in Large Language Models (LLMs), we propose a **Heterogeneous Molecular Encoding (HME) framework** that aims to improve **the bidirectional mapping within the chemical-linguistic sharing space**.
-
-<p align="center"><img src="img/model-archi.png" title="" height="700"></p>
+This repository contains the official implementation for the paper **"Navigating Chemical-Linguistic Sharing Space with Heterogeneous Molecular Encoding"**.
 
 
+---
 
-</p ></details>
+## 📖 Getting Started: From Setup to Inference
 
-## C. Highlights
-### 1. Framework suitable for advanced LLMs
-We propose Heterogeneous Molecular Encoding (HME), **a streamlined framework suitable for LLMs that integrates sequential and geometric molecular features to achieve unbiased encoding**.
-### 2. A dataset for multi-conditional molecular design
-We propose the MCMoD dataset, a comprehensive dataset containing **more than 1 million molecules** with their corresponding **textual descriptions, molecular fragments, and chemical property control signals**.
+Follow this checklist to get HME running.
 
-### 3. Excellent performance
-**Navigating linguisitic space:** HME achieves substantial performance in molecular captioning and question-answering. **Navigating chemical space:** HME demonstrates \textbf{reliable molecular design capabilities under various control signals}. Notably, **in zero-shot scenarios**, our framework achieves a remarkable 79.4\% success rate.
+### Installation
 
-## D. Main Results
-* **Navigating chemical space with linguistic guidance:**
-  
-  including: description-based molecular generation (**Chain of Thought** used), multi-objective molecular reverse design (**fragment serves as one of conditions**)
-  <p align="center"><img src="img/r3.png" title=""></p>
-  <p align="center"><img src="img/r2.jpg" title=""></p>
+First, clone the repository and install the `hme` package. This command will also install all required dependencies from `pyproject.toml`.
 
-* **Navigating linguisitic space with molecular guidance:**
-    
-    including: molecular captioning, molecular general QA, molecular property QA, etc.
-  <p align="center"><img src="img/r1.png" title=""></p>
-  <p align="center"><img src="img/r2.png" title=""></p>
-  
-  
-* More results can be found in the paper.
+```bash
+# 1. Clone the repository
+git clone https://github.com/your-username/HME.git
+cd HME
 
-## E. Src File Stucture
-- datasets/: store the datasets we used to train and test HME
-- fragment_vocabs/: fragment vocabulary files
-- metrics/: python files to evaluate the experimental results
-- molecular_towers/: frozen molecular 2D encoders and 3D encoders
-- psvae/: the principle subgraph mining algorithm to transform SMILES into fragments.
-- scripts/: bash scripts to run the models.
-- configuration_llava.py: the config of the HME model.
-- data.py: to define the dataset class.
-- frg.py: to fragment molecules.
-- infer.py: model inference.
-- modeling_llava.py: the architecture of the HME model.
-- preprocess.py: preprocess the json files of our datasets. 
-- utils.py: some utils including loading models, initializing models, setting random seeds, etc.
-
-## F. Install Requirements
-```
+# 2. Create and activate a conda environment
 conda create -n hme python=3.10
-pip install -r requirements.txt
-#only some key packages are listed in the requirements.txt.
-#If bugs occur during run our codes, please let us know and we will handle it promptly.
+conda activate hme
+
+# 3. Install the package in editable mode
+pip install -e .
 ```
 
+### Download Datasets
 
-## G. Dataset Preparation
-All the data used in our paper can be found in [HuggingFace](https://huggingface.co/datasets/GreatCaptainNemo/HME_dataset), where a detailed description is also provided. To reproduce HME:
-1. Download the dataset from [HuggingFace](https://huggingface.co/datasets/GreatCaptainNemo/HME_dataset) and put it under src/datasets/
-2. Preprocess the dataset:
-    ```
-    python preprocess.py
-    ```
-    The purpose of this step is to use frozen 2D encoder and 3D encoder to obtain the 2D and 3D features of the molecule. You need to modify the file path in preprocess.py to the actual json file path.
+Our datasets are hosted on Zenodo. Download and extract them into a `datasets/` directory.
 
-## H. Quick Inference
-1. Download our HME checkpoint from [HuggingFace](https://huggingface.co/collections/GreatCaptainNemo/hme-checkpoints-6772a4b9d3a8d679c97f3bc3).
-2. Model inference:
-    ```
-    sh ./scripts/eval.sh
-    ```
-3. use ./metrics/*.py to evaluate the generated results.
-    - mol2text_metrics.py: for captioning, general qa
-    - number_metrics.py: for property qa
-    - text2mol_metrics.py: for description-based molecular generation
+```bash
+# 1. Create the target directory
+mkdir -p datasets
+
+# 2. Download the data archive from Zenodo
+wget -O datasets/data.zip "https://zenodo.org/records/16963804/files/data.zip?download=1"
+
+# 3. Unzip the archive
+unzip datasets/data.zip -d datasets/
+rm datasets/data.zip # Clean up the zip file
+```
+
+### Preprocess Data
+
+Use the following script to preprocess the downloaded data. If you don’t want to retrain the model, you can skip the commented-out parts, since some preprocessing steps are unnecessary in that case.
+
+```python
+from hme.preprocess_mol import get_2d3d_tensors
+from hme.preprocess_prot import preprocess_crossdocked
+get_2d3d_tensors('./property_qa_test_2.json.cfm')
+# get_2d3d_tensors('./property_qa_train_2.json.cfm')
+# get_2d3d_tensors('./pretrain.json.cfm')
+# preprocess_crossdocked('/crossdocked_pocket10_train.json')
+```
+
+This will generate `.pt` feature files alongside your `.json` files.
+
+### Download Models
+
+We provide a script to download all HME adapter checkpoints and the Llama-3 base model from Hugging Face. You can comment out certain parts of the shell script to download only a subset of the models.
+
+```bash
+cd ../scripts
+bash download_models.sh
+```
+**Note on Llama-3**: This step requires gated access to `meta-llama/Meta-Llama-3-8B-Instruct`. Please ensure you have requested access on its [Hugging Face page](https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct) and are logged in via `huggingface-cli login`.
+
+### Merge Model Weights
+
+We provide a script to easily merge the models. Since the Llama-3 license only allows us to release adapter weights, you’ll need to run the merge to obtain the full model.
+
+You can comment out certain parts of the shell script to download only a subset of the models.
+
+```bash
+bash merge_models.sh
+```
+
+This will create several downstream models in the `checkpoints/` directory.
+
+### Run Evaluation
+
+You are now ready to run inference. Use the provided scripts in the `scripts/` directory.
+
+Example: Evaluate on Molecular Captioning
+```bash
+bash eval_captioning.sh
+```
+Predictions will be saved in the `results/` directory. You can then use our metric scripts to score the output:
+```bash
+python -m hme.metrics.mol2text_metrics --prediction_file ./results/captioning_predictions.json
+```
+
+---
+
+## 📖 How to Train
+
+For detailed instructions on preparing data for training and running the training scripts, please refer to our comprehensive guide:
+
+➡️ **[TRAINING.md](TRAINING.md)**
+
+---
 
 
-## I. Acknowledgements
-We would like to express our gratitude to the related projects and research and development personnel:
+## Citation
 
-Codes: [Huggingface LLaVa](https://huggingface.co/docs/transformers/v4.47.1/en/model_doc/llava), [PS-VAE](https://github.com/THUNLP-MT/PS-VAE)
-
-Data: [3D-MoIT](https://huggingface.co/datasets/Sihangli/3D-MoIT), [Tartarus](https://github.com/aspuru-guzik-group/Tartarus), [PubChem](https://pubchem.ncbi.nlm.nih.gov/docs/downloads), [PubChemQC](https://nakatamaho.riken.jp/pubchemqc.riken.jp/), [ChEBI](https://www.ebi.ac.uk/chebi/), [DTP](https://dtp.cancer.gov/), [ZINC](https://zinc.docking.org/)
-
-Others: [Meta-llama](https://huggingface.co/meta-llama), [GraphFP](https://github.com/lvkd84/GraphFP), [Uni-Mol](https://github.com/deepmodeling/Uni-Mol), [MoleculeSTM](https://github.com/chao1224/MoleculeSTM)
-
-## J. Citation
-If you find our repo helpful, please consider citing us.
-```BibTex
+If you find our work useful, please cite our paper:
+```bibtex
 @article{lv2024navigating,
   title={Navigating Chemical-Linguistic Sharing Space with Heterogeneous Molecular Encoding},
   author={Lv, Liuzhenghao and Li, Hao and Wang, Yu and Yan, Zhiyuan and Chen, Zijun and Lin, Zongying and Yuan, Li and Tian, Yonghong},
@@ -111,3 +123,6 @@ If you find our repo helpful, please consider citing us.
   year={2024}
 }
 ```
+
+## Acknowledgements
+Our work builds upon several fantastic open-source projects. We thank the authors of LLaVa, PS-VAE, Uni-Mol, and the various data sources used. A full list of acknowledgements can be found in our paper.s

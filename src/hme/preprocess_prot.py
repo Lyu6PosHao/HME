@@ -2248,7 +2248,6 @@ def preprocess_crossdocked(
     json_file_path: str,
     crossdocked_dir: str,
     device: str = "cuda:0",
-    encoder_checkpoint_path: str = "/path/to/your/v_48_020.pt",
 ) -> None:
     """
     Pre-computes protein pocket embeddings for the CrossDocked dataset.
@@ -2268,6 +2267,10 @@ def preprocess_crossdocked(
     encoder_checkpoint_path : str, optional
         Path to the pre-trained ProteinMPNN encoder checkpoint.
     """
+    
+    import importlib
+    encoder_checkpoint_path=importlib.resources.files("hme.molecule_towers") / "v_48_020.pt"
+    
     proteinMPNN_encoder = ProteinMPNNStructureEncoder(
         encoder_checkpoint_path, device=device
     )
@@ -2289,7 +2292,9 @@ def preprocess_crossdocked(
             print(f"Error processing {pocket_file}: {e}")
             failed_count += 1
 
-    print(f"\nProcessing complete. Embeddings generated for {len(all_representations)} pockets.")
+    print(
+        f"\nProcessing complete. Embeddings generated for {len(all_representations)} pockets."
+    )
     print(f"Failed to process {failed_count} pockets.")
 
     output_path = os.path.splitext(json_file_path)[0] + ".pt"
@@ -2340,9 +2345,11 @@ def preprocess_pdbbind(
             print(f"Error processing {pocket_file}: {e}")
             failed_count += 1
 
-    print(f"\nProcessing complete. Embeddings generated for {len(all_representations)} pockets.")
+    print(
+        f"\nProcessing complete. Embeddings generated for {len(all_representations)} pockets."
+    )
     print(f"Failed to process {failed_count} pockets.")
-    
+
     output_path = os.path.splitext(pickle_file_path)[0] + ".pt"
     torch.save(all_representations, output_path)
     print(f"Embeddings saved to {output_path}")

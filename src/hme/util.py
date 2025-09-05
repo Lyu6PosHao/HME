@@ -61,9 +61,7 @@ def get_nb_trainable_parameters(model: nn.Module) -> Tuple[int, int]:
             num_params = param.ds_numel
         if param.__class__.__name__ == "Params4bit":
             num_bytes = (
-                param.quant_storage.itemsize
-                if hasattr(param, "quant_storage")
-                else 1
+                param.quant_storage.itemsize if hasattr(param, "quant_storage") else 1
             )
             num_params *= 2 * num_bytes
         all_param += num_params
@@ -144,12 +142,10 @@ def smiles2graph(smiles_string: str, device: torch.device) -> Data:
     )
 
 
-def smart_tokenizer_and_embedding_resize(
-    tokenizer, model, num_new_tokens: int
-) -> None:
+def smart_tokenizer_and_embedding_resize(tokenizer, model, num_new_tokens: int) -> None:
     """
     Resizes the tokenizer and model embeddings, initializing new embeddings with the average
-    of the old ones. 
+    of the old ones.
     """
     if num_new_tokens <= 0:
         if num_new_tokens < 0:
@@ -173,17 +169,23 @@ def smart_tokenizer_and_embedding_resize(
     )
 
 
-def get_frg_list(task_type:str) -> List[str]:
+def get_frg_list(task_type: str) -> List[str]:
     """Loads a list of formatted fragment tokens from a vocabulary file."""
     from periodictable import elements
+
     MAX_VALENCE = {element.symbol: 10 for element in elements}
     import importlib.resources
-    if task_type=='textfrg2smi':
-        vocab_file = importlib.resources.files('hme.fragment_vocabs').joinpath('vocab_800_multi_obj_mol_design.txt')
-    else:
-        vocab_file = importlib.resources.files('hme.fragment_vocabs').joinpath('vocab_1000.txt')
 
-    with vocab_file.open('r', encoding='utf-8') as f:
+    if task_type == "textfrg2smi":
+        vocab_file = importlib.resources.files("hme.fragment_vocabs").joinpath(
+            "vocab_800_multi_obj_mol_design.txt"
+        )
+    else:
+        vocab_file = importlib.resources.files("hme.fragment_vocabs").joinpath(
+            "vocab_800_other_tasks.txt"
+        )
+
+    with vocab_file.open("r", encoding="utf-8") as f:
         vocab = [line.strip() for line in f]
     logger.warning(
         f"Using vocab_file: {os.path.basename(vocab_file)} to load fragment list."
@@ -257,7 +259,7 @@ def load_hme(
         # --- Scenario 1: Loading a pre-trained HME model ---
         logging.info("Found feature_fuser.pth. Loading as a pre-trained HME model.")
         config = HMEConfig.from_pretrained(checkpoint_path)
-        
+
         if dataargs is not None and "_reg" in dataargs.task_type:
             model = HMEForSequenceRegression(config, language_model)
             model.feature_fuser.load_state_dict(
@@ -267,7 +269,7 @@ def load_hme(
                 model.regression_head.load_state_dict(
                     torch.load(os.path.join(checkpoint_path, "regression_head.pth"))
                 )
-        else: # Default to conditional generation
+        else:  # Default to conditional generation
             model = HMEForConditionalGeneration(config, language_model)
             model.feature_fuser.load_state_dict(
                 torch.load(os.path.join(checkpoint_path, "feature_fuser.pth"))
@@ -304,14 +306,14 @@ def load_hme(
             molecule_2d_token_index=tokenizer.convert_tokens_to_ids("<molecule_2d>"),
             molecule_3d_token_index=tokenizer.convert_tokens_to_ids("<molecule_3d>"),
         )
-        
+
         if dataargs is not None and ("_reg" in dataargs.task_type):
             model = HMEForSequenceRegression(config, language_model)
-        else: # Default to conditional generation
+        else:  # Default to conditional generation
             model = HMEForConditionalGeneration(config, language_model)
             model.generation_config.max_new_tokens = 512
             model.generation_config.do_sample = False
-            
+
         smart_tokenizer_and_embedding_resize(
             tokenizer=tokenizer, model=model, num_new_tokens=len(tokenizer) - ori_length
         )

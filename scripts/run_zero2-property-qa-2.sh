@@ -17,8 +17,8 @@ MODULES_TO_SAVE="feature_fuser"
 TASK_TYPE="qa"
 TASK_NAME_SUFFIX="property-qa-2" # Used for naming the output directory
 DATA_TYPE="1d,2d,3d,frg"
-TRAIN_DATA_PATH="/path/to/your/datasets/HME_dataset/property_qa_train_2.json"
-MOL_EMB_PATH="/path/to/your/datasets/HME_dataset/property_qa_train_test_2.json.cfm.pt"
+TRAIN_DATA_PATH="../datasets/property_qa_train_2.json"
+MOL_EMB_PATH="../datasets/property_qa_train_test_2.json.cfm.pt"
 PROTEIN_EMB_PATH="none"
 
 # 3. Training Hyperparameters
@@ -37,7 +37,7 @@ MASTER_PORT=29503
 BASE_MODEL_PATH="/path/to/your/models/${BASE_MODEL}"
 OUTPUT_DIR="../checkpoints/${BASE_MODEL}_${TASK_NAME_SUFFIX}"
 mkdir -p "$OUTPUT_DIR"
-cp "$0" "${OUTPUT_DIR}/run_train.sh"
+cp "$0" "${OUTPUT_DIR}/"
 
 # Launch training with DeepSpeed
 deepspeed --include "localhost:${GPUS}" --master_port ${MASTER_PORT} --module hme.run_clm \

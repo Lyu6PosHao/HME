@@ -9,6 +9,7 @@ It calculates a variety of metrics, including:
 - Fingerprint Similarity: Tanimoto similarity for MACCS, RDKit, and Morgan fingerprints.
 - FCD (Fréchet ChemNet Distance): To assess the distribution similarity of generated molecules.
 """
+
 import json
 import os
 from typing import Dict, Tuple
@@ -48,9 +49,7 @@ def get_out_gt_from_line(file_path: str, line: str) -> Tuple[str, str]:
         return data["gen"].strip(), data["gt"].strip()
 
 
-def calc_fcd_torch(
-    generated_smiles: list[str], reference_smiles: list[str]
-) -> float:
+def calc_fcd_torch(generated_smiles: list[str], reference_smiles: list[str]) -> float:
     """
     Calculates the Fréchet ChemNet Distance (FCD) between two sets of SMILES.
 
@@ -162,9 +161,11 @@ def eval_smi_generation(file_path: str) -> Dict[str, float]:
         "MACCS Tanimoto": np.mean(maccs_sim) if maccs_sim else 0.0,
         "RDKit Tanimoto": np.mean(rdk_sim) if rdk_sim else 0.0,
         "Morgan Tanimoto": np.mean(morgan_sim) if morgan_sim else 0.0,
-        "FCD": calc_fcd_torch(valid_generated_smiles, all_gt_smiles)
-        if valid_generated_smiles
-        else 0.0,
+        "FCD": (
+            calc_fcd_torch(valid_generated_smiles, all_gt_smiles)
+            if valid_generated_smiles
+            else 0.0
+        ),
     }
 
     # --- Print Results ---
@@ -182,5 +183,5 @@ if __name__ == "__main__":
 
     # --- Example file paths for evaluation ---
     # Please update these paths to your actual result files.
-    file_path='result.jsonl'
+    file_path = "result.jsonl"
     eval_smi_generation(file_path)

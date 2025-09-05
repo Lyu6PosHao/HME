@@ -54,9 +54,9 @@ class MolInSubgraph:
         self.upid_cnt = mol.GetNumAtoms()  # Unique pid counter
 
         self._dirty = True  # Flag to indicate if neighbor info needs recalculation
-        self._smi2pids: Dict[
-            str, List[Tuple[int, int]]
-        ] = {}  # Cache for smi -> [(pid1, pid2), ...]
+        self._smi2pids: Dict[str, List[Tuple[int, int]]] = (
+            {}
+        )  # Cache for smi -> [(pid1, pid2), ...]
 
     def get_nei_subgraphs(self) -> Tuple[List[Dict[int, str]], List[Tuple[int, int]]]:
         """Finds all potential new subgraphs by merging adjacent existing subgraphs."""
@@ -339,7 +339,9 @@ def remove_radical_electrons(mol: Chem.Mol) -> Chem.Mol:
 
 def parse_args():
     """Parses command-line arguments for the script."""
-    parser = argparse.ArgumentParser(description="Principal subgraph extraction with BPE")
+    parser = argparse.ArgumentParser(
+        description="Principal subgraph extraction with BPE"
+    )
     parser.add_argument(
         "--data",
         type=str,
@@ -350,10 +352,16 @@ def parse_args():
         "--vocab_size", type=int, default=800, help="Desired size of the vocabulary."
     )
     parser.add_argument(
-        "--output", type=str, required=True, help="Path to save the generated vocabulary."
+        "--output",
+        type=str,
+        required=True,
+        help="Path to save the generated vocabulary.",
     )
     parser.add_argument(
-        "--workers", type=int, default=mp.cpu_count(), help="Number of CPU cores to use."
+        "--workers",
+        type=int,
+        default=mp.cpu_count(),
+        help="Number of CPU cores to use.",
     )
     parser.add_argument(
         "--kekulize",
@@ -402,6 +410,7 @@ def Graph_BPE_to_get_vocab():
 
 if __name__ == "__main__":
     import sys
+
     # Add project-specific path only when running as a script
     sys.path.append("../psvae")
     Graph_BPE_to_get_vocab()

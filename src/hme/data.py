@@ -122,13 +122,18 @@ class HMEDataset(Dataset):
             self.json_list = new_json_list
 
         if self.emb_dict_protein is not None:
-            self.emb_dict_protein = {k: v for k, v in self.emb_dict_protein.items() if v is not None}
+            self.emb_dict_protein = {
+                k: v for k, v in self.emb_dict_protein.items() if v is not None
+            }
             new_json_list = []
             for item in self.json_list:
                 if (
                     "meta_data" in item
                     and item["meta_data"]["pocket_file"] in self.emb_dict_protein
-                ) or ("pocket_path" in item and item["pocket_path"] in self.emb_dict_protein):
+                ) or (
+                    "pocket_path" in item
+                    and item["pocket_path"] in self.emb_dict_protein
+                ):
                     new_json_list.append(item)
                 else:
                     removed += 1
@@ -194,7 +199,13 @@ class HMEDataset(Dataset):
                 item_3d = self.emb_dict_mol[item["smiles"]]["molecule_raw_3d_features"]
 
         if self.task_type == "qa":
-            (question, answer, molecule_raw_2d_features, molecule_raw_3d_features, protein_raw_features) = (
+            (
+                question,
+                answer,
+                molecule_raw_2d_features,
+                molecule_raw_3d_features,
+                protein_raw_features,
+            ) = (
                 self.__input_sequence_format(item["instruction"], item),
                 item["output"],
                 item_2d,
@@ -202,7 +213,13 @@ class HMEDataset(Dataset):
                 None,
             )
         elif self.task_type == "caption":
-            (question, answer, molecule_raw_2d_features, molecule_raw_3d_features, protein_raw_features) = (
+            (
+                question,
+                answer,
+                molecule_raw_2d_features,
+                molecule_raw_3d_features,
+                protein_raw_features,
+            ) = (
                 self.__input_sequence_format("Please describe the molecule:", item),
                 item["description"],
                 item_2d,
@@ -210,7 +227,13 @@ class HMEDataset(Dataset):
                 None,
             )
         elif self.task_type == "pretrain-s2":
-            (question, answer, molecule_raw_2d_features, molecule_raw_3d_features, protein_raw_features) = (
+            (
+                question,
+                answer,
+                molecule_raw_2d_features,
+                molecule_raw_3d_features,
+                protein_raw_features,
+            ) = (
                 self.__input_sequence_format("Please describe the molecule:", item),
                 item["description"],
                 item_2d,
@@ -218,7 +241,13 @@ class HMEDataset(Dataset):
                 None,
             )
         elif self.task_type == "pretrain":
-            (question, answer, molecule_raw_2d_features, molecule_raw_3d_features, protein_raw_features) = (
+            (
+                question,
+                answer,
+                molecule_raw_2d_features,
+                molecule_raw_3d_features,
+                protein_raw_features,
+            ) = (
                 self.__input_sequence_format("", item),
                 item["description"],
                 item_2d,
@@ -226,7 +255,13 @@ class HMEDataset(Dataset):
                 None,
             )
         elif self.task_type == "text2smi":
-            (question, answer, molecule_raw_2d_features, molecule_raw_3d_features, protein_raw_features) = (
+            (
+                question,
+                answer,
+                molecule_raw_2d_features,
+                molecule_raw_3d_features,
+                protein_raw_features,
+            ) = (
                 f"Please give me molecular SMILES based on the description: {item['description']}",
                 f"{item['smiles']}",
                 item_2d,
@@ -234,7 +269,13 @@ class HMEDataset(Dataset):
                 None,
             )
         elif self.task_type == "text2frgsmi":
-            (question, answer, molecule_raw_2d_features, molecule_raw_3d_features, protein_raw_features) = (
+            (
+                question,
+                answer,
+                molecule_raw_2d_features,
+                molecule_raw_3d_features,
+                protein_raw_features,
+            ) = (
                 f"Please give me molecular fragments based on the description. And then give me the molecular SMILES based on both the fragments and the description. The description is: {item['description']}",
                 f"Molecular fragments are: {item['fragments']} Molecular SMILES is: {item['smiles']}",
                 item_2d,
@@ -242,7 +283,13 @@ class HMEDataset(Dataset):
                 None,
             )
         elif self.task_type == "textfrg2smi":
-            (question, answer, molecule_raw_2d_features, molecule_raw_3d_features, protein_raw_features) = (
+            (
+                question,
+                answer,
+                molecule_raw_2d_features,
+                molecule_raw_3d_features,
+                protein_raw_features,
+            ) = (
                 f"There are some conditions, including logp (the hydrophobicity and solubility balance), qed (the drug-likeness), sas (the synthetic accessibility score), and the fragments (include specific fragments). Now please design a molecule under the given constraints: {item['description']}",
                 f"{item['output']}",
                 item_2d,
@@ -250,7 +297,13 @@ class HMEDataset(Dataset):
                 None,
             )
         elif self.task_type == "textprotein2frgsmi":
-            (question, answer, molecule_raw_2d_features, molecule_raw_3d_features, protein_raw_features) = (
+            (
+                question,
+                answer,
+                molecule_raw_2d_features,
+                molecule_raw_3d_features,
+                protein_raw_features,
+            ) = (
                 f"Your task is to design a small-molecule ligand. You should first design the molecular fragments and then design the molecular SMILES. If any property constraints are provided (e.g., logP: octanol-water partition coefficient; QED: Quantitative Estimation of Drug-likeness; SAS: Synthetic Accessibility Score； Affinity: binding affinity predicted by AutoDock Vina), the designed molecule should satisfy them.\n\nNow please design a molecule under the given constraints:\nThe ligand should bind to this protein pocket: {'<protein>'*32}. {item['description']}",
                 f"Molecular fragments are: {item['fragments']}. Molecular SMILES is: {item['smiles']}",
                 item_2d,
@@ -258,7 +311,13 @@ class HMEDataset(Dataset):
                 self.emb_dict_protein[item["meta_data"]["pocket_file"]],
             )
         elif self.task_type == "pdbbind_reg":
-            (question, answer, molecule_raw_2d_features, molecule_raw_3d_features, protein_raw_features) = (
+            (
+                question,
+                answer,
+                molecule_raw_2d_features,
+                molecule_raw_3d_features,
+                protein_raw_features,
+            ) = (
                 self.__input_sequence_format(
                     f"<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\nYou are a chemist.<|eot_id|><|start_header_id|>user<|end_header_id|>\n\nYour task is to predict the affinity of the molecule with the protein pocket. The protein pocket is: {'<protein>'*32}.",
                     item,
@@ -275,15 +334,21 @@ class HMEDataset(Dataset):
         return [
             question,
             answer,
-            molecule_raw_2d_features.bfloat16()
-            if molecule_raw_2d_features is not None
-            else None,
-            molecule_raw_3d_features.bfloat16()
-            if molecule_raw_3d_features is not None
-            else None,
-            protein_raw_features.bfloat16()
-            if protein_raw_features is not None
-            else None,
+            (
+                molecule_raw_2d_features.bfloat16()
+                if molecule_raw_2d_features is not None
+                else None
+            ),
+            (
+                molecule_raw_3d_features.bfloat16()
+                if molecule_raw_3d_features is not None
+                else None
+            ),
+            (
+                protein_raw_features.bfloat16()
+                if protein_raw_features is not None
+                else None
+            ),
         ]
 
 
@@ -309,7 +374,9 @@ class HMEProcessor:
     @torch.no_grad()
     def __call__(
         self,
-        text: Union[TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput]] = None,
+        text: Union[
+            TextInput, PreTokenizedInput, List[TextInput], List[PreTokenizedInput]
+        ] = None,
         molecule_raw_2d_features: Optional[torch.FloatTensor] = None,
         molecule_raw_3d_features: Optional[torch.FloatTensor] = None,
         protein_raw_features: Optional[torch.FloatTensor] = None,
@@ -356,6 +423,7 @@ class HMEProcessor:
 @dataclass
 class MoleculeQAObject:
     """A data class to hold processed question/answer pairs and modal features."""
+
     q_input_ids: torch.Tensor
     a_input_ids: torch.Tensor
     molecule_raw_2d_features: Optional[torch.Tensor]
@@ -420,15 +488,21 @@ class TrainHMECollator:
         self.ignore_index = config.ignore_index
         self.modal_padding = config.modal_padding
 
-    def convert_one_piece(
-        self, mqa_obj: MoleculeQAObject
-    ) -> Tuple[torch.Tensor, torch.Tensor, Optional[torch.Tensor], Optional[torch.Tensor], Optional[torch.Tensor]]:
+    def convert_one_piece(self, mqa_obj: MoleculeQAObject) -> Tuple[
+        torch.Tensor,
+        torch.Tensor,
+        Optional[torch.Tensor],
+        Optional[torch.Tensor],
+        Optional[torch.Tensor],
+    ]:
         """Converts a single processed sample into input_ids and labels."""
         input_ids = torch.concat(
             [
                 mqa_obj.q_input_ids,
                 mqa_obj.a_input_ids,
-                torch.tensor(self.processor.tokenizer.eos_token_id, dtype=torch.int64).view(1, -1),
+                torch.tensor(
+                    self.processor.tokenizer.eos_token_id, dtype=torch.int64
+                ).view(1, -1),
             ],
             dim=1,
         )
@@ -436,7 +510,9 @@ class TrainHMECollator:
             [
                 torch.full(mqa_obj.q_input_ids.shape, self.ignore_index),
                 mqa_obj.a_input_ids,
-                torch.tensor(self.processor.tokenizer.eos_token_id, dtype=torch.int64).view(1, -1),
+                torch.tensor(
+                    self.processor.tokenizer.eos_token_id, dtype=torch.int64
+                ).view(1, -1),
             ],
             dim=1,
         )
@@ -449,9 +525,7 @@ class TrainHMECollator:
         )
 
     @torch.no_grad()
-    def __call__(
-        self, features: List[List]
-    ) -> Dict[str, torch.Tensor]:
+    def __call__(self, features: List[List]) -> Dict[str, torch.Tensor]:
         """Collates a list of samples into a single batch dictionary."""
         input_ids_list = []
         labels_list = []
@@ -486,30 +560,40 @@ class TrainHMECollator:
                 protein_raw_features_list.append(temp_protein_raw_features)
 
         final_input_ids = pad_sequence(
-            input_ids_list, batch_first=True, padding_value=self.processor.tokenizer.pad_token_id
+            input_ids_list,
+            batch_first=True,
+            padding_value=self.processor.tokenizer.pad_token_id,
         )
         final_labels = pad_sequence(
             labels_list, batch_first=True, padding_value=self.ignore_index
         )
-        attention_mask = final_input_ids.ne(self.processor.tokenizer.pad_token_id).long()
+        attention_mask = final_input_ids.ne(
+            self.processor.tokenizer.pad_token_id
+        ).long()
 
         final_molecule_raw_2d_features = (
             pad_sequence(
-                molecule_raw_2d_features_list, batch_first=True, padding_value=self.modal_padding
+                molecule_raw_2d_features_list,
+                batch_first=True,
+                padding_value=self.modal_padding,
             )
             if molecule_raw_2d_features_list
             else None
         )
         final_molecule_raw_3d_features = (
             pad_sequence(
-                molecule_raw_3d_features_list, batch_first=True, padding_value=self.modal_padding
+                molecule_raw_3d_features_list,
+                batch_first=True,
+                padding_value=self.modal_padding,
             )
             if molecule_raw_3d_features_list
             else None
         )
         final_protein_raw_features = (
             pad_sequence(
-                protein_raw_features_list, batch_first=True, padding_value=self.modal_padding
+                protein_raw_features_list,
+                batch_first=True,
+                padding_value=self.modal_padding,
             )
             if protein_raw_features_list
             else None
@@ -601,17 +685,25 @@ class TrainHMECollatorRegression:
         final_molecule_raw_2d_features = None
         if molecule_raw_2d_features_list:
             if any(f is None for f in molecule_raw_2d_features_list):
-                raise ValueError("Found None in non-empty molecule_raw_2d_features_list.")
+                raise ValueError(
+                    "Found None in non-empty molecule_raw_2d_features_list."
+                )
             final_molecule_raw_2d_features = pad_sequence(
-                molecule_raw_2d_features_list, batch_first=True, padding_value=self.modal_padding
+                molecule_raw_2d_features_list,
+                batch_first=True,
+                padding_value=self.modal_padding,
             )
 
         final_molecule_raw_3d_features = None
         if molecule_raw_3d_features_list:
             if any(f is None for f in molecule_raw_3d_features_list):
-                raise ValueError("Found None in non-empty molecule_raw_3d_features_list.")
+                raise ValueError(
+                    "Found None in non-empty molecule_raw_3d_features_list."
+                )
             final_molecule_raw_3d_features = pad_sequence(
-                molecule_raw_3d_features_list, batch_first=True, padding_value=self.modal_padding
+                molecule_raw_3d_features_list,
+                batch_first=True,
+                padding_value=self.modal_padding,
             )
 
         final_protein_raw_features = None
@@ -619,7 +711,9 @@ class TrainHMECollatorRegression:
             if any(f is None for f in protein_raw_features_list):
                 raise ValueError("Found None in non-empty protein_raw_features_list.")
             final_protein_raw_features = pad_sequence(
-                protein_raw_features_list, batch_first=True, padding_value=self.modal_padding
+                protein_raw_features_list,
+                batch_first=True,
+                padding_value=self.modal_padding,
             )
 
         return {
@@ -678,7 +772,9 @@ class TrainHMECollatorClassification:
             input_ids_list.append(input_ids)
 
             if isinstance(classification_label, (int, float)):
-                labels_list.append(torch.tensor(int(classification_label), dtype=torch.long))
+                labels_list.append(
+                    torch.tensor(int(classification_label), dtype=torch.long)
+                )
             elif isinstance(classification_label, torch.Tensor):
                 labels_list.append(classification_label.long().squeeze())
             else:

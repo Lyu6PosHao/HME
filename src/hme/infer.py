@@ -21,33 +21,58 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ModelArguments:
     """Arguments pertaining to which model/config/tokenizer we are going to use for inference."""
+
     model_name_or_path: Optional[str] = field(default="test_model/model001")
-    do_sample: bool = field(default=False, metadata={"help": "Enable sampling; otherwise greedy decoding."})
+    do_sample: bool = field(
+        default=False, metadata={"help": "Enable sampling; otherwise greedy decoding."}
+    )
     temperature: float = field(default=1.0, metadata={"help": "Sampling temperature."})
     top_k: int = field(default=50, metadata={"help": "Top-k filtering parameter."})
-    top_p: float = field(default=0.95, metadata={"help": "Top-p (nucleus) filtering parameter."})
-    num_beams: int = field(default=1, metadata={"help": "Number of beams for beam search (1 = no beam search)."})
+    top_p: float = field(
+        default=0.95, metadata={"help": "Top-p (nucleus) filtering parameter."}
+    )
+    num_beams: int = field(
+        default=1,
+        metadata={"help": "Number of beams for beam search (1 = no beam search)."},
+    )
 
 
 @dataclass
 class DataArguments:
     """Arguments pertaining to the data used for inference."""
-    data_path: str = field(metadata={"help": "Path to the inference data file."})
-    data_type: str = field(metadata={"help": "Comma-separated string of data modalities (e.g., '1d,2d,3d')."})
-    emb_dict_mol: str = field(metadata={"help": "Path to the pre-computed molecule embeddings dictionary."})
-    emb_dict_protein: str = field(metadata={"help": "Path to the pre-computed protein embeddings dictionary."})
-    task_type: str = field(metadata={"help": "The type of task (e.g., 'qa', 'caption')."})
-    output_path: str = field(default='output.jsonl', metadata={"help": "Path to save the output JSONL file."})
-    max_length: Optional[int] = field(default=512, metadata={"help": "Maximum sequence length."})
 
+    data_path: str = field(metadata={"help": "Path to the inference data file."})
+    data_type: str = field(
+        metadata={
+            "help": "Comma-separated string of data modalities (e.g., '1d,2d,3d')."
+        }
+    )
+    emb_dict_mol: str = field(
+        metadata={"help": "Path to the pre-computed molecule embeddings dictionary."}
+    )
+    emb_dict_protein: str = field(
+        metadata={"help": "Path to the pre-computed protein embeddings dictionary."}
+    )
+    task_type: str = field(
+        metadata={"help": "The type of task (e.g., 'qa', 'caption')."}
+    )
+    output_path: str = field(
+        default="output.jsonl", metadata={"help": "Path to save the output JSONL file."}
+    )
+    max_length: Optional[int] = field(
+        default=512, metadata={"help": "Maximum sequence length."}
+    )
 
 
 def _parse_generated_output(text: str, model_name: str) -> str:
     """Parses the raw generated text to extract the clean response."""
-    if 'llama2' in model_name.lower() or 'llama-2' in model_name.lower():
-        return text.split("[/INST]")[-1].strip().split('</s>')[0]
-    else: # Assumes Llama-3 or similar chat format
-        return text.split("assistant")[-1].split("\n\n")[-1].strip().split('<|eot_id|>')[0]
+    if "llama2" in model_name.lower() or "llama-2" in model_name.lower():
+        return text.split("[/INST]")[-1].strip().split("</s>")[0]
+    else:  # Assumes Llama-3 or similar chat format
+        return (
+            text.split("assistant")[-1].split("\n\n")[-1].strip().split("<|eot_id|>")[0]
+        )
+
 
 def run():
     """
@@ -75,7 +100,9 @@ def run():
     # 3. Load dataset
     processor = HMEProcessor(tokenizer=tokenizer, max_length=data_args.max_length)
     data_collator = TrainHMECollator(processor=processor, config=config)
-    test_dataset = prepare_dataset(data_args, is_eval=False) # Use `is_eval=False` to load from `data_path`
+    test_dataset = prepare_dataset(
+        data_args, is_eval=False
+    )  # Use `is_eval=False` to load from `data_path`
 
     # 4. Set up generation config
     generation_config = GenerationConfig(
@@ -91,16 +118,18 @@ def run():
 
     # 5. Run inference loop
     if os.path.exists(data_args.output_path):
-        logging.warning(f"Output file {data_args.output_path} already exists. Appending to it.")
+        logging.warning(
+            f"Output file {data_args.output_path} already exists. Appending to it."
+        )
 
     for i, item in enumerate(tqdm(test_dataset, desc="Generating responses")):
         # Prepare a single data point for the model
         data = data_collator([item])
         # Isolate the prompt part (where labels are -100)
-        prompt_mask = (data["labels"] == -100)
+        prompt_mask = data["labels"] == -100
         data["input_ids"] = data["input_ids"][prompt_mask].unsqueeze(0)
         data["attention_mask"] = data["attention_mask"][prompt_mask].unsqueeze(0)
-        
+
         # Remove labels and move data to GPU
         data.pop("labels")
         for k, v in data.items():
@@ -112,15 +141,19 @@ def run():
             output_tokens = model.generate(**data, generation_config=generation_config)
 
         # Decode and parse the output
-        response_tokens = output_tokens[:, data['input_ids'].size(1):]
+        response_tokens = output_tokens[:, data["input_ids"].size(1) :]
         raw_gen_text = tokenizer.decode(response_tokens[0], skip_special_tokens=False)
-        clean_gen_text = _parse_generated_output(raw_gen_text, model_args.model_name_or_path)
+        clean_gen_text = _parse_generated_output(
+            raw_gen_text, model_args.model_name_or_path
+        )
         ground_truth = item[1].strip()
 
         # Save the result
-        with open(data_args.output_path, 'a', encoding='utf-8') as f:
-            json.dump({"gen": clean_gen_text, "gt": ground_truth}, f, ensure_ascii=False)
-            f.write('\n')
+        with open(data_args.output_path, "a", encoding="utf-8") as f:
+            json.dump(
+                {"gen": clean_gen_text, "gt": ground_truth}, f, ensure_ascii=False
+            )
+            f.write("\n")
 
     logger.info(f"Inference complete. Results saved to {data_args.output_path}")
 

@@ -37,7 +37,7 @@ MASTER_PORT=29501
 BASE_MODEL_PATH="/path/to/your/models/${BASE_MODEL}"
 OUTPUT_DIR="../checkpoints/${BASE_MODEL}_${TASK_NAME_SUFFIX}_${TASK_TYPE}"
 mkdir -p "$OUTPUT_DIR"
-cp "$0" "${OUTPUT_DIR}/run_train.sh"
+cp "$0" "${OUTPUT_DIR}/"
 
 # Launch training with DeepSpeed
 deepspeed --include "localhost:${GPUS}" --master_port ${MASTER_PORT} --module run_regression.py \

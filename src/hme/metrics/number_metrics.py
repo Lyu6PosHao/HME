@@ -4,6 +4,7 @@ It parses prediction files, extracts generated and ground truth numbers, filters
 calculates metrics like MAE, R², Pearson, and RMSE, and provides an optional
 visualization function.
 """
+
 import json
 import re
 from typing import Dict, List, Optional, Tuple
@@ -161,12 +162,21 @@ def get_out_gt_from_line(file_path: str, line: str) -> Tuple[str, str]:
 
 def _get_task_groups(input_file: str) -> Dict[str, List]:
     """Determines the task groups based on the input file name."""
-    if "pubchemqc" in input_file or "pubchemqa" in input_file or "property-qa-2" in input_file:
+    if (
+        "pubchemqc" in input_file
+        or "pubchemqa" in input_file
+        or "property-qa-2" in input_file
+    ):
         return {"homo": [], "lumo": [], "homo-lumo gap": [], "scf energy": []}
     elif "docking" in input_file:
         return {"docking": []}
     else:
-        return {"weight": [], "logp": [], "topological polar surface area": [], "complexity": []}
+        return {
+            "weight": [],
+            "logp": [],
+            "topological polar surface area": [],
+            "complexity": [],
+        }
 
 
 def _calculate_statistics(
@@ -187,7 +197,7 @@ def _calculate_statistics(
     if len(gt_arr) > 1:
         pearson = np.corrcoef(gen_arr, gt_arr)[0, 1]
     else:
-        pearson = np.nan # Cannot compute with a single point
+        pearson = np.nan  # Cannot compute with a single point
 
     equal_ratio = np.mean(np.isclose(gt_arr, gen_arr))
     rmse = np.sqrt(np.mean((gt_arr - gen_arr) ** 2))
@@ -217,7 +227,7 @@ def eval_number(input_file: str, exclude_outliers: bool = True) -> List[float]:
 
     gen = _get_task_groups(input_file)
     gt = {k: [] for k in gen.keys()}
-    pattern = r'-?\d+\.\d+'  # Matches integers and floats
+    pattern = r"-?\d+\.\d+"  # Matches integers and floats
 
     for line in tqdm(lines, desc=f"Processing {input_file}"):
         item_gen, item_gt = get_out_gt_from_line(input_file, line)

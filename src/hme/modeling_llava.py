@@ -474,9 +474,7 @@ class FeatureFuser(nn.Module):
         molecule_raw_2d_features: Optional[torch.Tensor],
         molecule_raw_3d_features: Optional[torch.Tensor],
         protein_raw_features: Optional[torch.Tensor],
-    ) -> Tuple[
-        Optional[torch.Tensor], Optional[torch.Tensor], Optional[torch.Tensor]
-    ]:
+    ) -> Tuple[Optional[torch.Tensor], Optional[torch.Tensor], Optional[torch.Tensor]]:
         """
         Processes and fuses features from all modalities.
 
@@ -1075,10 +1073,6 @@ class HMEForSequenceRegression(nn.Module):
         return HMERegressionOutput(loss=loss, logits=predictions)
 
 
-
-
-
-
 class HMEForSequenceClassification(nn.Module):
     """
     HME model adapted for sequence-level classification tasks.
@@ -1224,6 +1218,6 @@ class HMEForSequenceClassification(nn.Module):
 
             bce_loss_fct = nn.BCEWithLogitsLoss()
             bce_loss = bce_loss_fct(logits.squeeze(-1), labels_for_bce)
-            loss = bce_loss 
+            loss = bce_loss
 
         return HMESequenceClassificationOutput(loss=loss, logits=logits)

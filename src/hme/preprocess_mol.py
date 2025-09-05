@@ -11,7 +11,7 @@ from tqdm import tqdm
 from unimol_tools import UniMolRepr
 
 from hme.modeling_tower import Molecule2DTower
-from util import set_seed
+from hme.util import set_seed
 
 # --- Initial Setup ---
 RDLogger.DisableLog("rdApp.*")
@@ -79,7 +79,9 @@ def inner_smi2coords(
         idx = [i for i, atom in enumerate(atoms) if atom != "H"]
         atoms = [atoms[i] for i in idx]
         coordinates = coordinates[idx]
-        assert len(atoms) == len(coordinates), f"No-H coordinates shape mismatch for {smi}"
+        assert len(atoms) == len(
+            coordinates
+        ), f"No-H coordinates shape mismatch for {smi}"
 
     return atoms, None if returned_none else coordinates
 
@@ -196,9 +198,9 @@ def get_2d3d_tensors(file_path_with_cfm: str) -> None:
             "atoms": [mol["atoms"] for mol in batch],
             "coordinates": [mol["coordinates"] for mol in batch],
         }
-        repr_3d = molecule_3d_tower.get_repr(
-            input_data, return_atomic_reprs=True
-        )["atomic_reprs"]
+        repr_3d = molecule_3d_tower.get_repr(input_data, return_atomic_reprs=True)[
+            "atomic_reprs"
+        ]
         for mol, feature in zip(batch, repr_3d):
             mol["molecule_raw_3d_features"] = torch.tensor(feature)
 
@@ -217,18 +219,18 @@ def get_2d3d_tensors(file_path_with_cfm: str) -> None:
 if __name__ == "__main__":
     # This should be set only when running the script directly.
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-    
+
     # --- Example Preprocessing Pipeline ---
     # STEP 1: Generate 3D conformations from a SMILES JSON file.
     # Replace this path with the path to your input JSON file.
     input_json_path = "/path/to/your/dataset.json"
-    
+
     print(f"--- Step 1: Generating conformations for {input_json_path} ---")
     get_conformation(input_json_path)
 
     # STEP 2: Generate 2D and 3D feature embeddings from the conformation file.
     conformation_file_path = input_json_path + ".cfm"
-    
+
     print(f"\n--- Step 2: Generating 2D/3D tensors from {conformation_file_path} ---")
     if os.path.exists(conformation_file_path):
         get_2d3d_tensors(conformation_file_path)

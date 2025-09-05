@@ -193,8 +193,6 @@ class Molecule(nx.Graph):
     def get_edge(self, i: int, j: int) -> SubgraphEdge:
         return self[i][j]["connects"]
 
-
-
     def get_node(self, i: int) -> SubgraphNode:
         return self.nodes[i]["subgraph"]
 

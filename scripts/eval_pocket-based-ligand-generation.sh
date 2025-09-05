@@ -3,15 +3,15 @@ set -e
 
 # --- Configuration ---
 # 1. Model and Task Settings
-MODEL_NAME="Meta-Llama-3-8B-Instruct_pdbv2016_refined_x_pdbbind_reg_merged_textprotein2frgsmi_merged"
+MODEL_NAME="HME_pocket-based-ligand-generation_merged"
 TASK_TYPE="textprotein2frgsmi"
 DATA_TYPE="1d,frg"
 
 # 2. Path Settings (UPDATE THESE PATHS)
-MODEL_PATH="/path/to/your/models/${MODEL_NAME}"
-DATA_PATH="/path/to/your/datasets/crossdocked2020/crossdocked_pocket10_generation.nn.json"
+MODEL_PATH="../checkpoints/${MODEL_NAME}"
+DATA_PATH="../datasets/CrossDocked2020/crossdocked_pocket10_generation.nn.json"
 MOL_EMB_PATH="none"
-PROTEIN_EMB_PATH="/path/to/your/datasets/crossdocked2020/crossdocked_pocket10_test.pt"
+PROTEIN_EMB_PATH="../datasets/CrossDocked2020/crossdocked_pocket10_test.pt"
 
 # 3. GPU and Output Settings
 GPU_ID=0
@@ -22,7 +22,7 @@ MAX_LENGTH=512
 OUTPUT_DIR="../results/${MODEL_NAME}_${TASK_TYPE}"
 OUTPUT_PATH="${OUTPUT_DIR}/result.jsonl"
 mkdir -p "$OUTPUT_DIR"
-cp "$0" "${OUTPUT_DIR}/run_infer.sh" # Save a copy of the script
+cp "$0" "${OUTPUT_DIR}/" # Save a copy of the script
 
 # Set CUDA device and launch inference
 # Note: This task uses sampling (do_sample=True)

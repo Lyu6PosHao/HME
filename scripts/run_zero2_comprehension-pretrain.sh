@@ -16,8 +16,8 @@ MODULES_TO_SAVE="feature_fuser,lm_head,embed_tokens"
 # 2. Data and Task Settings
 TASK_TYPE="pretrain"
 DATA_TYPE="1d,2d,3d,frg"
-DATA_PATH="/path/to/your/datasets/HME_dataset/pretrain_299K.json"
-MOL_EMB_PATH="/path/to/your/datasets/HME_dataset/pretrain.json.cfm.pt"
+DATA_PATH="../datasets/pretrain_299K.json"
+MOL_EMB_PATH="../datasets/pretrain.json.cfm.pt"
 PROTEIN_EMB_PATH="none"
 
 # 3. Training Hyperparameters
@@ -36,7 +36,7 @@ MASTER_PORT=29500
 BASE_MODEL_PATH="/path/to/your/models/${BASE_MODEL}"
 OUTPUT_DIR="../checkpoints/${BASE_MODEL}_${TASK_TYPE}"
 mkdir -p "$OUTPUT_DIR"
-cp "$0" "${OUTPUT_DIR}/run_train.sh"
+cp "$0" "${OUTPUT_DIR}/"
 
 # Launch training with DeepSpeed
 deepspeed --include "localhost:${GPUS}" --master_port ${MASTER_PORT} --module hme.run_clm \
