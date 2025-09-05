@@ -1,87 +1,116 @@
-
 #!/usr/bin/python
 # -*- coding:utf-8 -*-
 from copy import copy, deepcopy
-from typing import Union
+from typing import Dict, List, Tuple, Union
 
 import networkx as nx
+import numpy as np
 from rdkit import Chem
 from rdkit.Chem.Draw import rdMolDraw2D
 from rdkit.Chem.rdchem import Mol as RDKitMol
-import numpy as np
 
-from chem_utils import smi2mol, mol2smi
-from chem_utils import get_submol, get_submol_atom_map
+from chem_utils import get_submol, get_submol_atom_map, mol2smi, smi2mol
 
 
 class SubgraphNode:
-    '''
-    The node representing a subgraph
-    '''
+    """The node representing a subgraph in the Molecule graph."""
+
     def __init__(self, smiles: str, pos: int, atom_mapping: dict, kekulize: bool):
         self.smiles = smiles
         self.pos = pos
         self.mol = smi2mol(smiles, kekulize, sanitize=False)
         # map atom idx in the molecule to atom idx in the subgraph (submol)
         self.atom_mapping = copy(atom_mapping)
-    
-    def get_mol(self):
-        '''return molecule in rdkit form'''
+
+    def get_mol(self) -> RDKitMol:
+        """return molecule in rdkit form"""
         return self.mol
 
-    def get_atom_mapping(self):
+    def get_atom_mapping(self) -> Dict:
         return copy(self.atom_mapping)
 
-    def __str__(self):
-        return f'''
+    def __str__(self) -> str:
+        return f"""
                     smiles: {self.smiles},
                     position: {self.pos},
                     atom map: {self.atom_mapping}
-                '''
+                """
 
 
 class SubgraphEdge:
-    '''
-    Edges between two subgraphs
-    '''
+    """The edge representing connections between two subgraphs."""
+
     def __init__(self, src: int, dst: int, edges: list):
-        self.edges = copy(edges)  # list of tuple (a, b, type) where the canonical order is used
+        self.edges = copy(
+            edges
+        )  # list of tuple (a, b, type) where the canonical order is used
         self.src = src
         self.dst = dst
         self.dummy = False
         if len(self.edges) == 0:
             self.dummy = True
-    
-    def get_edges(self):
+
+    def get_edges(self) -> List:
         return copy(self.edges)
-    
-    def get_num_edges(self):
+
+    def get_num_edges(self) -> int:
         return len(self.edges)
 
-    def __str__(self):
-        return f'''
+    def __str__(self) -> str:
+        return f"""
                     src subgraph: {self.src}, dst subgraph: {self.dst},
                     atom bonds: {self.edges}
-                '''
+                """
 
 
+# Color palette for SVG visualization
 colors = [
-(247, 192, 197, 1),
-(255, 229, 190, 1),
-(197, 233, 199, 1), 
-(190, 232, 240, 1), 
-(191, 207, 228, 1), 
-(226, 197, 222, 1), 
-(217, 217, 217, 1) 
+    (247, 192, 197, 1),  # Red
+    (255, 229, 190, 1),  # Orange
+    (197, 233, 199, 1),  # Yellow
+    (190, 232, 240, 1),  # Green
+    (191, 207, 228, 1),  # Cyan
+    (226, 197, 222, 1),  # Blue
+    (217, 217, 217, 1),  # Purple
 ]
-colors = [
-(r / 255, g / 255, b / 255, a) for r, g, b, a in colors
-]
+# Normalize RGB values to be between 0 and 1
+colors = [(r / 255, g / 255, b / 255, a) for r, g, b, a in colors]
+
 
 class Molecule(nx.Graph):
-    '''molecule represented in subgraph-level'''
+    """
+    A graph-based representation of a molecule at the subgraph level.
 
-    def __init__(self, mol: Union[str, RDKitMol]=None, groups: list=None, kekulize: bool=False):
+    This class inherits from `networkx.Graph` where each node is a `SubgraphNode`
+    (a molecular fragment) and each edge is a `SubgraphEdge` (connections
+    between fragments). It allows for reconstructing the full RDKit molecule
+    from its constituent subgraphs.
+    """
+
+    def __init__(
+        self,
+        mol: Union[str, RDKitMol] = None,
+        groups: List[List[int]] = None,
+        kekulize: bool = False,
+    ):
+        """
+        Initializes a Molecule object from a full RDKit molecule and a list of atom groups.
+
+        The constructor partitions the input `mol` into subgraphs defined by `groups`.
+        It creates a `SubgraphNode` for each group and a `SubgraphEdge` for each
+        set of connections between groups.
+
+        Parameters
+        ----------
+        mol : Union[str, RDKitMol], optional
+            The input molecule as a SMILES string or an RDKit Mol object. If None,
+            an empty graph is created.
+        groups : List[List[int]], optional
+            A list of lists, where each inner list contains the atom indices (from the
+            original `mol`) that form a subgraph.
+        kekulize : bool, optional
+            Whether to kekulize molecules during processing.
+        """
         super().__init__()
         if mol is None:
             return
@@ -89,7 +118,7 @@ class Molecule(nx.Graph):
             smiles, rdkit_mol = mol, smi2mol(mol, kekulize)
         else:
             smiles, rdkit_mol = mol2smi(mol), mol
-        self.graph['smiles'] = smiles
+        self.graph["smiles"] = smiles
         # processing atoms
         aid2pos = {}
         for pos, group in enumerate(groups):
@@ -109,12 +138,18 @@ class Molecule(nx.Graph):
 
             begin_subgraph_pos = aid2pos[begin]
             end_subgraph_pos = aid2pos[end]
-            begin_mapped = self.nodes[begin_subgraph_pos]['subgraph'].atom_mapping[begin]
-            end_mapped = self.nodes[end_subgraph_pos]['subgraph'].atom_mapping[end]
+            begin_mapped = self.nodes[begin_subgraph_pos]["subgraph"].atom_mapping[
+                begin
+            ]
+            end_mapped = self.nodes[end_subgraph_pos]["subgraph"].atom_mapping[end]
 
             bond_type = bond.GetBondType()
-            edges_arr[begin_subgraph_pos][end_subgraph_pos].append((begin_mapped, end_mapped, bond_type))
-            edges_arr[end_subgraph_pos][begin_subgraph_pos].append((end_mapped, begin_mapped, bond_type))
+            edges_arr[begin_subgraph_pos][end_subgraph_pos].append(
+                (begin_mapped, end_mapped, bond_type)
+            )
+            edges_arr[end_subgraph_pos][begin_subgraph_pos].append(
+                (end_mapped, begin_mapped, bond_type)
+            )
 
         # add egdes into the graph
         for i in range(len(groups)):
@@ -123,10 +158,10 @@ class Molecule(nx.Graph):
                     continue
                 edge = SubgraphEdge(i, j, edges_arr[i][j])
                 self.add_edge(edge)
-    
+
     @classmethod
-    def from_nx_graph(cls, graph: nx.Graph, deepcopy=True):
-        if deepcopy:
+    def from_nx_graph(cls, graph: nx.Graph, deepcopy_flag=True):
+        if deepcopy_flag:
             graph = deepcopy(graph)
         graph.__class__ = Molecule
         return graph
@@ -144,10 +179,10 @@ class Molecule(nx.Graph):
                 node.pos = node_mappings[i][n]
                 mol.add_node(node)
             for src, dst in mols[i].edges:
-                edge = deepcopy(mols[i].get_edge(src, dst))
-                edge.src = node_mappings[i][src]
-                edge.dst = node_mappings[i][dst]
-                mol.add_edge(src, dst, connects=edge)
+                edge_obj = deepcopy(mols[i].get_edge(src, dst))
+                edge_obj.src = node_mappings[i][src]
+                edge_obj.dst = node_mappings[i][dst]
+                mol.add_edge(src, dst, connects=edge_obj)
         # add new edge
         edge = deepcopy(edge)
         edge.src = node_mappings[0][edge.src]
@@ -155,16 +190,18 @@ class Molecule(nx.Graph):
         mol.add_edge(edge)
         return mol
 
-    def get_edge(self, i, j) -> SubgraphEdge:
-        return self[i][j]['connects']
-    
-    def get_node(self, i) -> SubgraphNode:
-        return self.nodes[i]['subgraph']
+    def get_edge(self, i: int, j: int) -> SubgraphEdge:
+        return self[i][j]["connects"]
+
+
+
+    def get_node(self, i: int) -> SubgraphNode:
+        return self.nodes[i]["subgraph"]
 
     def add_edge(self, edge: SubgraphEdge) -> None:
         src, dst = edge.src, edge.dst
         super().add_edge(src, dst, connects=edge)
-    
+
     def add_node(self, node: SubgraphNode) -> None:
         n = node.pos
         super().add_node(n, subgraph=node)
@@ -174,7 +211,21 @@ class Molecule(nx.Graph):
         assert isinstance(graph, Molecule)
         return graph
 
-    def to_rdkit_mol(self):
+    def to_rdkit_mol(self) -> RDKitMol:
+        """
+        Reconstructs the full RDKit molecule from the subgraph-level graph.
+
+        This method iterates through all `SubgraphNode`s, adds their atoms and
+        internal bonds to a new `RWMol` object. It then iterates through all
+        `SubgraphEdge`s to add the bonds connecting the subgraphs. Finally, it
+        renumbers the atoms to match the original molecule's indexing and
+        sanitizes the molecule, handling potential valence issues (e.g., for N+).
+
+        Returns
+        -------
+        RDKitMol
+            The reconstructed, sanitized RDKit molecule object.
+        """
         mol = Chem.RWMol()
         aid_mapping, order = {}, []
         # add all the subgraphs to rwmol
@@ -213,25 +264,49 @@ class Molecule(nx.Graph):
             Chem.SanitizeMol(mol)
             return mol
         for p in ps:
-            if p.GetType()=='AtomValenceException':  # for N+, we need to set its formal charge
+            if p.GetType() == "AtomValenceException":
                 at = mol.GetAtomWithIdx(p.GetAtomIdx())
-                if at.GetAtomicNum()==7 and at.GetFormalCharge()==0 and at.GetExplicitValence()==4:
+                if (
+                    at.GetAtomicNum() == 7
+                    and at.GetFormalCharge() == 0
+                    and at.GetExplicitValence() == 4
+                ):
                     at.SetFormalCharge(1)
         Chem.SanitizeMol(mol)
         return mol
-    
-    def to_SVG(self, path: str, size: tuple=(200, 200), add_idx=False) -> str:
-        # save the subgraph-level molecule to an SVG image
-        # return the content of svg in string format
+
+    def to_SVG(
+        self, path: str, size: Tuple[int, int] = (200, 200), add_idx: bool = False
+    ) -> str:
+        """
+        Generates and saves an SVG image of the molecule, highlighting the subgraphs.
+
+        Each subgraph is highlighted with a different color for both its atoms and
+        internal bonds, making the fragmentation visually clear.
+
+        Parameters
+        ----------
+        path : str
+            The file path to save the SVG image.
+        size : tuple, optional
+            The dimensions (width, height) of the SVG image, by default (200, 200).
+        add_idx : bool, optional
+            If True, adds atom map numbers to the atoms in the image, by default False.
+
+        Returns
+        -------
+        str
+            The content of the generated SVG image as a string.
+        """
         mol = self.to_rdkit_mol()
-        if add_idx:  # this will produce an ugly figure
+        if add_idx:
             for i in range(mol.GetNumAtoms()):
                 atom = mol.GetAtomWithIdx(i)
                 atom.SetAtomMapNum(i)
         tm = rdMolDraw2D.PrepareMolForDrawing(mol)
         view = rdMolDraw2D.MolDraw2DSVG(*size)
         option = view.drawOptions()
-        option.useBWAtomPalette()  
+        option.useBWAtomPalette()
         option.legendFontSize = 18
         option.bondLineWidth = 1
         option.highlightBondWidthMultiplier = 20
@@ -240,9 +315,7 @@ class Molecule(nx.Graph):
         # atoms in each subgraph
         for i in self.nodes:
             node = self.get_node(i)
-            # random color in rgb. mix with white to obtain soft colors
-            #color = tuple(((np.random.rand(3) + 1)/ 2).tolist()+ [0.2])  # RGBA, where alpha=0.5 is transparency
-            color=colors[np.random.choice(7)]
+            color = colors[np.random.choice(7)]
             for atom_id in node.atom_mapping:
                 sg_atoms.append(atom_id)
                 atom2subgraph[atom_id] = i
@@ -253,28 +326,30 @@ class Molecule(nx.Graph):
             begin, end = bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()
             if atom2subgraph[begin] == atom2subgraph[end]:
                 sg_bonds.append(bond_id)
-                
-                
-                bond_color[bond_id] =tuple( list(atom_color[begin])[:-1]+[1])
-                
-        view.DrawMolecules([tm], highlightAtoms=[sg_atoms], \
-                           highlightBonds=[sg_bonds], highlightAtomColors=[atom_color], \
-                           highlightBondColors=[bond_color])
+                bond_color[bond_id] = tuple(list(atom_color[begin])[:-1] + [1])
+
+        view.DrawMolecules(
+            [tm],
+            highlightAtoms=[sg_atoms],
+            highlightBonds=[sg_bonds],
+            highlightAtomColors=[atom_color],
+            highlightBondColors=[bond_color],
+        )
         view.FinishDrawing()
         svg = view.GetDrawingText()
-        with open(path, 'w') as fout:
+        with open(path, "w") as fout:
             fout.write(svg)
         return svg
 
-    def to_smiles(self):
+    def to_smiles(self) -> str:
         rdkit_mol = self.to_rdkit_mol()
         return mol2smi(rdkit_mol)
 
-    def __str__(self):
-        desc = 'nodes: \n'
+    def __str__(self) -> str:
+        desc = "nodes: \n"
         for ni, node in enumerate(self.nodes):
-            desc += f'{ni}:{self.get_node(node)}\n'
-        desc += 'edges: \n'
+            desc += f"{ni}:{self.get_node(node)}\n"
+        desc += "edges: \n"
         for src, dst in self.edges:
-            desc += f'{src}-{dst}:{self.get_edge(src, dst)}\n'
+            desc += f"{src}-{dst}:{self.get_edge(src, dst)}\n"
         return desc

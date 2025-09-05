@@ -1,85 +1,175 @@
+"""
+A collection of utility functions for cheminformatics tasks using RDKit.
+
+This module provides helpers for converting between SMILES and RDKit molecule objects,
+extracting sub-molecules, mapping atom indices, and counting atoms.
+"""
+from typing import Dict, List, Optional, Set
 
 from rdkit import Chem
-from periodictable import elements
-#MAX_VALENCE = {'B': 3, 'Br':1, 'C':4, 'Cl':1, 'F':1, 'I':1, 'N':5, 'O':2, 'P':5, 'S':6} #, 'Se':4, 'Si':4}
-MAX_VALENCE =  {element.symbol: 10 for element in elements}
+from rdkit.Chem.rdchem import Mol
 
-def smi2mol(smiles: str, kekulize=False, sanitize=True):
-    '''turn smiles to molecule'''
+
+def smi2mol(
+    smiles: str, kekulize: bool = False, sanitize: bool = True
+) -> Optional[Mol]:
+    """
+    Converts a SMILES string to an RDKit molecule object.
+
+    Parameters
+    ----------
+    smiles : str
+        The SMILES string to convert.
+    kekulize : bool, optional
+        Whether to kekulize the molecule, by default False.
+    sanitize : bool, optional
+        Whether to sanitize the molecule, by default True.
+
+    Returns
+    -------
+    Optional[Mol]
+        The corresponding RDKit Mol object, or None if conversion fails.
+    """
     mol = Chem.MolFromSmiles(smiles, sanitize=sanitize)
-    if kekulize:
+    if mol and kekulize:
         Chem.Kekulize(mol, True)
     return mol
 
 
-def mol2smi(mol, canonical=True):
+def mol2smi(mol: Mol, canonical: bool = True) -> str:
+    """
+    Converts an RDKit molecule object to a SMILES string.
+
+    Parameters
+    ----------
+    mol : Mol
+        The RDKit molecule object.
+    canonical : bool, optional
+        Whether to generate a canonical SMILES string, by default True.
+
+    Returns
+    -------
+    str
+        The resulting SMILES string.
+    """
     return Chem.MolToSmiles(mol, canonical=canonical)
 
 
-def get_submol(mol, atom_indices, kekulize=False):  
-    if len(atom_indices) == 1:  
-        atom_symbol = mol.GetAtomWithIdx(atom_indices[0]).GetSymbol()
-        # if atom_symbol not in MAX_VALENCE.keys():
-        #     
-        atom_symbol=f"[{atom_symbol}]"
+def get_submol(
+    mol: Mol, atom_indices: List[int], kekulize: bool = False
+) -> Optional[Mol]:
+    """
+    Extracts a sub-molecule from a larger molecule based on a list of atom indices.
+
+    This function only considers bonds that are fully contained within the specified
+    set of atoms.
+
+    Parameters
+    ----------
+    mol : Mol
+        The parent RDKit molecule object.
+    atom_indices : List[int]
+        A list of atom indices that define the sub-molecule.
+    kekulize : bool, optional
+        Whether to kekulize the resulting sub-molecule, by default False.
+
+    Returns
+    -------
+    Optional[Mol]
+        The extracted sub-molecule as an RDKit Mol object, or None if it fails.
+    """
+    if len(atom_indices) == 1:
+        # Handle single-atom fragments, which PathToSubmol cannot process correctly.
+        atom = mol.GetAtomWithIdx(atom_indices[0])
+        atom_symbol = f"[{atom.GetSymbol()}]"
         return smi2mol(atom_symbol, kekulize)
 
-    
-    aid_dict = { i: True for i in atom_indices }
+    aid_set = set(atom_indices)
     edge_indices = []
+    for bond in mol.GetBonds():
+        # Check if both atoms of the bond are within the specified subgraph.
+        if bond.GetBeginAtomIdx() in aid_set and bond.GetEndAtomIdx() in aid_set:
+            edge_indices.append(bond.GetIdx())
 
-    for i in range(mol.GetNumBonds()): 
-        bond = mol.GetBondWithIdx(i)
-        begin_aid = bond.GetBeginAtomIdx()
-        end_aid = bond.GetEndAtomIdx()
-        if begin_aid in aid_dict and end_aid in aid_dict:  
-            edge_indices.append(i)
-    mol = Chem.PathToSubmol(mol, edge_indices)  
-    return mol
+    # PathToSubmol creates a new molecule from a list of bond indices.
+    # It returns an empty molecule if edge_indices is empty.
+    submolecule = Chem.PathToSubmol(mol, edge_indices)
+    return submolecule
 
 
-def get_submol_atom_map(mol, submol, group, kekulize=False):
+def get_submol_atom_map(
+    mol: Mol, submol: Mol, group: Set[int], kekulize: bool = False
+) -> Optional[Dict[int, int]]:
+    """
+    Maps atom indices from a parent molecule to a sub-molecule.
+
+    Finds the matching pattern of `submol` within `mol` that corresponds to the
+    original `group` of atom indices and returns the mapping from old (parent)
+    to new (sub-molecule) indices.
+
+    Parameters
+    ----------
+    mol : Mol
+        The parent RDKit molecule.
+    submol : Mol
+        The sub-molecule object.
+    group : Set[int]
+        The original set of atom indices from the parent molecule that formed the sub-molecule.
+    kekulize : bool, optional
+        Whether to kekulize the sub-molecule before matching, by default False.
+
+    Returns
+    -------
+    Optional[Dict[int, int]]
+        A dictionary mapping old atom indices to new atom indices. Returns None if no
+        valid mapping is found.
+    """
     if len(group) == 1:
-        return { group[0]: 0 }
-    # turn to smiles order
+        # For a single-atom subgraph, the mapping is trivial.
+        return {list(group)[0]: 0}
+
+    # Standardize the sub-molecule by converting to and from SMILES to get a canonical ordering.
     smi = mol2smi(submol)
-    submol = smi2mol(smi, kekulize, sanitize=False)
-    # # special with N+ and N-
-    # for atom in submol.GetAtoms():
-    #     if atom.GetSymbol() != 'N':
-    #         continue
-    #     if (atom.GetExplicitValence() == 3 and atom.GetFormalCharge() == 1) or atom.GetExplicitValence() < 3:
-    #         atom.SetNumRadicalElectrons(0)
-    #         atom.SetNumExplicitHs(2)
-    
-    matches = mol.GetSubstructMatches(submol)
-    old2new = { i: 0 for i in group }  # old atom idx to new atom idx
-    found = False
-    for m in matches:
-        hit = True
-        for i, atom_idx in enumerate(m):
-            if atom_idx not in old2new:
-                hit = False
-                break
-            old2new[atom_idx] = i
-        if hit:
-            found = True
-            break
-    assert found
-    return old2new
+    submol_canonical = smi2mol(smi, kekulize, sanitize=False)
+    if not submol_canonical:
+        return None
+
+    matches = mol.GetSubstructMatches(submol_canonical)
+    for match in matches:
+        # A valid match must be a permutation of the original atom indices in the group.
+        if set(match) == group:
+            return {old_idx: new_idx for new_idx, old_idx in enumerate(match)}
+    return None
 
 
-def cnt_atom(smi, return_dict=False):
-    atom_dict = { atom: 0 for atom in MAX_VALENCE }
-    for i in range(len(smi)):
-        symbol = smi[i].upper()
-        next_char = smi[i+1] if i+1 < len(smi) else None
-        if symbol == 'B' and next_char == 'r':
-            symbol += next_char
-        elif symbol == 'C' and next_char == 'l':
-            symbol += next_char
-        if symbol in atom_dict:
-            atom_dict[symbol] += 1
+def cnt_atom(smi: str, return_dict: bool = False) -> Union[int, Dict[str, int]]:
+    """
+    Counts the number of atoms in a SMILES string.
+
+    This function is designed to handle multi-character element symbols like 'Br' and 'Cl'.
+
+    Parameters
+    ----------
+    smi : str
+        The SMILES string.
+    return_dict : bool, optional
+        If True, returns a dictionary with counts for each atom type.
+        If False, returns the total atom count, by default False.
+
+    Returns
+    -------
+    Union[int, Dict[str, int]]
+        Either the total count of atoms or a dictionary of counts per atom symbol.
+    """
+    mol = Chem.MolFromSmiles(smi)
+    if not mol:
+        return {} if return_dict else 0
+
+    atom_dict = {}
+    for atom in mol.GetAtoms():
+        symbol = atom.GetSymbol()
+        atom_dict[symbol] = atom_dict.get(symbol, 0) + 1
+
     if return_dict:
         return atom_dict
     else:

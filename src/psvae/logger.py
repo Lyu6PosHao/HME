@@ -4,7 +4,7 @@ import os
 import sys
 
 
-LEVELS = ['TRACE', 'DEBUG', 'INFO', 'WARN', 'ERROR']
+LEVELS = ["TRACE", "DEBUG", "INFO", "WARN", "ERROR"]
 LEVELS_MAP = None
 
 
@@ -22,11 +22,11 @@ def get_prio(level):
     return LEVELS_MAP[level.upper()]
 
 
-def print_log(s, level='INFO', end='\n', no_prefix=False):
-    pth_prio = get_prio(os.getenv('LOG', 'INFO'))
+def print_log(s, level="INFO", end="\n", no_prefix=False):
+    pth_prio = get_prio(os.getenv("LOG", "INFO"))
     prio = get_prio(level)
     if prio >= pth_prio:
         if not no_prefix:
-            print(level.upper() + '::', end='')
+            print(level.upper() + "::", end="")
         print(s, end=end)
         sys.stdout.flush()
