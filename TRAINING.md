@@ -10,10 +10,10 @@ Before proceeding, please ensure you have completed the first three steps from t
     ```python
     from hme.preprocess_mol import get_2d3d_tensors
     from hme.preprocess_prot import preprocess_crossdocked
-    get_2d3d_tensors('./property_qa_test_2.json.cfm')
-    get_2d3d_tensors('./property_qa_train_2.json.cfm')
-    get_2d3d_tensors('./pretrain.json.cfm')
-    preprocess_crossdocked('/crossdocked_pocket10_train.json')
+    get_2d3d_tensors('./datasets/property_qa_test_2.json.cfm')
+    get_2d3d_tensors('./datasets/property_qa_train_2.json.cfm')
+    get_2d3d_tensors('./datasets/pretrain.json.cfm')
+    preprocess_crossdocked('./datasets/crossdocked_pocket10_train.json')
     ```
 
 ## Running the Training Scripts

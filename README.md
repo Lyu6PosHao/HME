@@ -58,10 +58,10 @@ Use the following script to preprocess the downloaded data. If you don’t want 
 ```python
 from hme.preprocess_mol import get_2d3d_tensors
 from hme.preprocess_prot import preprocess_crossdocked
-get_2d3d_tensors('./property_qa_test_2.json.cfm')
-# get_2d3d_tensors('./property_qa_train_2.json.cfm')
-# get_2d3d_tensors('./pretrain.json.cfm')
-# preprocess_crossdocked('/crossdocked_pocket10_train.json')
+get_2d3d_tensors('./datasets/property_qa_test_2.json.cfm')
+# get_2d3d_tensors('./datasets/property_qa_train_2.json.cfm')
+# get_2d3d_tensors('./datasets/pretrain.json.cfm')
+# preprocess_crossdocked('./datasets/crossdocked_pocket10_train.json')
 ```
 
 This will generate `.pt` feature files alongside your `.json` files.
@@ -71,7 +71,8 @@ This will generate `.pt` feature files alongside your `.json` files.
 We provide a script to download all HME adapter checkpoints and the Llama-3 base model from Hugging Face. You can comment out certain parts of the shell script to download only a subset of the models.
 
 ```bash
-cd ../scripts
+mkdir -p checkpoints
+cd ./scripts
 bash download_models.sh
 ```
 **Note on Llama-3**: This step requires gated access to `meta-llama/Meta-Llama-3-8B-Instruct`. Please ensure you have requested access on its [Hugging Face page](https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct) and are logged in via `huggingface-cli login`.
