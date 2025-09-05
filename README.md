@@ -24,7 +24,7 @@ First, clone the repository and install the `hme` package. This command will als
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/your-username/HME.git
+git clone https://github.com/Lyu6PosHao/HME.git
 cd HME
 
 # 2. Create and activate a conda environment
