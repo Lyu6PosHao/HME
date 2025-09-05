@@ -12,6 +12,34 @@ from util import load_hme, set_seed
 
 
 def merge_lora_model(model_args: "ModelArguments", data_args: "DataArguments") -> None:
+    """
+    Merge a PEFT (Parameter-Efficient Fine-Tuning) adapter into a base model 
+    and save the merged model along with its tokenizer and task-specific head if applicable.
+
+    Parameters
+    ----------
+    model_args : ModelArguments
+        Dataclass containing paths related to the model:
+        - `model_name_or_path`: Path to the base model.
+        - `peft_model_path`: Path to the PEFT adapter.
+        - `merged_model_path`: Path where the merged model will be saved.
+    data_args : DataArguments
+        Dataclass containing optional data-related arguments:
+        - `task_type`: Optional string indicating the task type (e.g., 'pdbbind_reg', 'toxicity_cls').
+          Determines if a regression or classification head should be saved.
+
+    Returns
+    -------
+    None
+        The function saves the merged model and tokenizer to disk. If a task-specific head is
+        detected, it also saves the corresponding regression or classification head.
+    
+    Notes
+    -----
+    - This function sets the random seed to 42 for reproducibility.
+    - The function automatically handles conditional saving of task-specific heads
+      based on the provided `task_type`.
+    """
     set_seed(42)
     print("--- Loading Base Model and Tokenizer ---")
     model, tokenizer, _, _ = load_hme(
@@ -61,6 +89,24 @@ class DataArguments:
 
 
 def main():
+    """
+    Parse command-line arguments and merge a PEFT adapter into a base model.
+
+    Command-line Arguments
+    ----------------------
+    --base_model_path : Path
+        Path to the base model to merge into.
+    --adapter_path : Path
+        Path to the PEFT adapter to merge.
+    --task_type : str, optional
+        Optional task type (e.g., 'pdbbind_reg') to save a specific head. Default is None.
+
+    Behavior
+    --------
+    - Validates that the provided paths exist.
+    - Automatically determines the output path for the merged model.
+    - Calls `merge_lora_model` to perform the merge and save the results.
+    """
     parser = argparse.ArgumentParser(
         description="Merge a PEFT adapter into a base model.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
