@@ -169,3 +169,28 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Build artifacts
+*.egg-info/
+build/
+dist/
+
+# Environment folders (if you create them inside the project)
+test_env/ 
+venv/
+
+# IDE specific files
+.vscode/
+.idea/
+
+# Large data/model files that shouldn't be in git
+checkpoints/
+results/
+datasets/
+molecule_towers/*.pth  
+molecule_towers/*.pt
