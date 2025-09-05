@@ -126,4 +126,4 @@ If you find our work useful, please cite our paper:
 ```
 
 ## Acknowledgements
-Our work builds upon several fantastic open-source projects. We thank the authors of LLaVa, PS-VAE, Uni-Mol, and the various data sources used. A full list of acknowledgements can be found in our paper.s
+Our work builds upon several fantastic open-source projects. We thank the authors of LLaVa, PS-VAE, Uni-Mol, and the various data sources used. A full list of acknowledgements can be found in our paper.
