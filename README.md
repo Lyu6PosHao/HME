@@ -1,4 +1,4 @@
-# Heterogeneous Molecular Encoding (HME)
+## Navigating Chemical-Linguistic Sharing Space with Heterogeneous Molecular Encoding
 
 <div align="center">
 
