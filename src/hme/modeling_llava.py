@@ -209,93 +209,6 @@ class GroupedQueryAttention(nn.Module):
         return output, attn_weights
 
 
-class QueryLearning(nn.Module):
-    """
-    Projects raw features from a modality into an embedding space and then samples
-    them into a fixed number of tokens using a learned set of queries.
-
-    This module combines input projection with a perceiver-style sampler.
-
-    Parameters
-    ----------
-    config : HMEConfig
-        The model configuration.
-    modal : str
-        The modality name, one of "2d", "3d", or "protein".
-    embed_dim : int
-        The dimension of the intermediate embedding space.
-    num_queries : int
-        The number of learnable queries to use for sampling, determining the output token count.
-    num_heads : int
-        The number of attention heads for the sampler.
-    num_kv_heads : int
-        The number of key/value heads for the sampler's GQA.
-    """
-
-    def __init__(
-        self,
-        config: HMEConfig,
-        modal: str,
-        embed_dim: int,
-        num_queries: int,
-        num_heads: int,
-        num_kv_heads: int,
-    ):
-        super().__init__()
-        self.modal_padding = config.modal_padding
-        if modal == "2d":
-            self.xd_dim = config.molecule_2d_hidden_size
-        elif modal == "3d":
-            self.xd_dim = config.molecule_3d_hidden_size
-        elif modal == "protein":
-            self.xd_dim = config.protein_hidden_size
-        else:
-            raise ValueError(f"Invalid modal: {modal}")
-
-        self.input_projection = nn.Linear(self.xd_dim, embed_dim, bias=True)
-        self.query = nn.Parameter(torch.Tensor(num_queries, embed_dim))
-        nn.init.normal_(self.query, std=embed_dim**-0.5)
-
-        self.attn = GroupedQueryAttention(
-            embed_dim=embed_dim,
-            num_heads=num_heads,
-            num_kv_heads=num_kv_heads,
-            batch_first=True,
-        )
-        self.ln_q = nn.LayerNorm(embed_dim)
-        self.ln_kv = nn.LayerNorm(embed_dim)
-
-    def forward(
-        self, modal_raw_xd_features: Optional[torch.Tensor]
-    ) -> Optional[torch.Tensor]:
-        """
-        Processes raw modal features.
-
-        Parameters
-        ----------
-        modal_raw_xd_features : Optional[torch.Tensor]
-            Raw input features for the modality of shape `(batch_size, seq_len, xd_dim)`.
-            If `None`, returns `None`.
-
-        Returns
-        -------
-        Optional[torch.Tensor]
-            The sampled feature tokens of shape `(batch_size, num_queries, embed_dim)`,
-            or `None` if the input was `None`.
-        """
-        if modal_raw_xd_features is None:
-            return None
-
-        key_padding_mask = modal_raw_xd_features.eq(self.modal_padding).all(dim=-1)
-        projected_xd_features = self.input_projection(modal_raw_xd_features)
-        x_kv = self.ln_kv(projected_xd_features)
-
-        q_base = self.ln_q(self.query)
-        q = q_base.unsqueeze(0).repeat(x_kv.size(0), 1, 1)
-
-        attn_output, _ = self.attn(q, x_kv, x_kv, key_padding_mask=key_padding_mask)
-        return attn_output
-
 
 class ModalCrossFuser(nn.Module):
     """
@@ -378,17 +291,169 @@ class ModalCrossFuser(nn.Module):
         return feat_2d, feat_3d
 
 
+
+class QueryLearning(nn.Module):
+    """
+    A perceiver-style sampler that uses a set of learnable queries to sample a variable-length
+    sequence of features into a fixed-length sequence.
+
+    This module uses Grouped Query Attention to compare learnable queries against the input
+    feature sequence (key/value) and produce a fixed number of output tokens.
+
+    Parameters
+    ----------
+    embed_dim : int
+        The dimension of the feature and query embedding space.
+    num_queries : int
+        The number of learnable queries, which determines the length of the output sequence.
+    num_heads : int
+        The number of attention heads for the sampler.
+    num_kv_heads : int
+        The number of key/value heads for Grouped Query Attention.
+    """
+
+    def __init__(
+        self,
+        embed_dim: int,
+        num_queries: int,
+        num_heads: int,
+        num_kv_heads: int,
+    ):
+        super().__init__()
+        self.query = nn.Parameter(torch.Tensor(num_queries, embed_dim))
+        nn.init.normal_(self.query, std=embed_dim**-0.5)
+
+        self.attn = GroupedQueryAttention(
+            embed_dim=embed_dim,
+            num_heads=num_heads,
+            num_kv_heads=num_kv_heads,
+            batch_first=True,
+        )
+        self.ln_q = nn.LayerNorm(embed_dim)
+        self.ln_kv = nn.LayerNorm(embed_dim)
+
+    def forward(
+        self,
+        x: torch.Tensor,
+        key_padding_mask: Optional[torch.Tensor]
+    ) -> torch.Tensor:
+        """
+        Forward pass for QueryLearning.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Input feature tensor of shape `(batch_size, seq_len, embed_dim)`.
+        key_padding_mask : Optional[torch.Tensor]
+            Mask for the input features of shape `(batch_size, seq_len)`.
+
+        Returns
+        -------
+        torch.Tensor
+            The sampled feature tokens of shape `(batch_size, num_queries, embed_dim)`.
+        """
+        x_kv = self.ln_kv(x)
+        q_base = self.ln_q(self.query)
+        q = q_base.unsqueeze(0).repeat(x_kv.size(0), 1, 1)
+
+        attn_output, _ = self.attn(q, x_kv, x_kv, key_padding_mask=key_padding_mask)
+        return attn_output
+
+
+class SoftTokenizer(nn.Module):
+    """
+    A "soft tokenizer" that projects raw high-dimensional features from a modality
+    into an intermediate embedding space and then samples them into a fixed
+    number of representative tokens using a QueryLearning module.
+
+    This class acts as a wrapper to maintain compatibility with pre-trained weights
+    that expect a `sampler` submodule.
+
+    Parameters
+    ----------
+    config : HMEConfig
+        The model configuration.
+    modal : str
+        The modality name, one of "2d", "3d", or "protein".
+    embed_dim : int
+        The dimension of the intermediate embedding space for QueryLearning.
+    num_queries : int
+        The number of output tokens to generate.
+    num_heads : int
+        The number of attention heads for the internal sampler.
+    num_kv_heads : int
+        The number of key/value heads for the internal sampler's GQA.
+    """
+    def __init__(
+        self,
+        config: HMEConfig,
+        modal: str,
+        embed_dim: int,
+        num_queries: int,
+        num_heads: int,
+        num_kv_heads: int,
+    ):
+        super().__init__()
+        self.modal_padding = config.modal_padding
+        if modal == "2d":
+            self.xd_dim = config.molecule_2d_hidden_size
+        elif modal == "3d":
+            self.xd_dim = config.molecule_3d_hidden_size
+        elif modal == "protein":
+            self.xd_dim = config.protein_hidden_size
+        else:
+            raise ValueError(f"Invalid modal: {modal}")
+
+        self.input_projection = nn.Linear(self.xd_dim, embed_dim, bias=True)
+
+        self.sampler = QueryLearning(
+            embed_dim=embed_dim,
+            num_queries=num_queries,
+            num_heads=num_heads,
+            num_kv_heads=num_kv_heads,
+        )
+
+    def forward(
+        self, modal_raw_xd_features: Optional[torch.Tensor]
+    ) -> Optional[torch.Tensor]:
+        """
+        Processes raw modal features into a fixed number of soft tokens.
+
+        Parameters
+        ----------
+        modal_raw_xd_features : Optional[torch.Tensor]
+            Raw input features of shape `(batch_size, seq_len, xd_dim)`.
+
+        Returns
+        -------
+        Optional[torch.Tensor]
+            The generated soft tokens of shape `(batch_size, num_queries, embed_dim)`,
+            or `None` if the input was `None`.
+        """
+        if modal_raw_xd_features is None:
+            return None
+
+        key_padding_mask = modal_raw_xd_features.eq(self.modal_padding).all(dim=-1)
+        projected_features = self.input_projection(modal_raw_xd_features)
+        sampled_features = self.sampler(projected_features, key_padding_mask)
+        return sampled_features
+
+
 class FeatureFuser(nn.Module):
     """
     A comprehensive module to process, fuse, and project features from multiple modalities
     (2D molecule, 3D molecule, protein) into the language model's embedding space.
+
+    It uses a `SoftTokenizer` for each modality to generate a fixed number of "soft tokens",
+    optionally fuses the molecular tokens using cross-attention, and finally projects
+    them to the target hidden size of the language model.
 
     Parameters
     ----------
     config : HMEConfig
         The model configuration.
     lightweight_embed_dim : int, optional, default=4096
-        The intermediate embedding dimension for tokenizers.
+        The intermediate embedding dimension used by the soft tokenizers.
     tokenizer_num_attn_heads : int, optional, default=32
         Number of attention heads for the tokenizer samplers.
     tokenizer_num_kv_heads : int, optional, default=8
@@ -423,7 +488,9 @@ class FeatureFuser(nn.Module):
         super().__init__()
         self.target_hidden_size = config.text_config.hidden_size
 
-        self.tokenizer_2d = QueryLearning(
+        # ** CRITICAL **: Instantiate SoftTokenizer instead of QueryLearning directly.
+        # This restores the 'tokenizer_2d.sampler.query' parameter path.
+        self.tokenizer_2d = SoftTokenizer(
             config,
             modal="2d",
             embed_dim=lightweight_embed_dim,
@@ -431,7 +498,7 @@ class FeatureFuser(nn.Module):
             num_heads=tokenizer_num_attn_heads,
             num_kv_heads=tokenizer_num_kv_heads,
         )
-        self.tokenizer_3d = QueryLearning(
+        self.tokenizer_3d = SoftTokenizer(
             config,
             modal="3d",
             embed_dim=lightweight_embed_dim,
@@ -439,7 +506,7 @@ class FeatureFuser(nn.Module):
             num_heads=tokenizer_num_attn_heads,
             num_kv_heads=tokenizer_num_kv_heads,
         )
-        self.tokenizer_protein = QueryLearning(
+        self.tokenizer_protein = SoftTokenizer(
             config,
             modal="protein",
             embed_dim=lightweight_embed_dim,
@@ -475,25 +542,6 @@ class FeatureFuser(nn.Module):
         molecule_raw_3d_features: Optional[torch.Tensor],
         protein_raw_features: Optional[torch.Tensor],
     ) -> Tuple[Optional[torch.Tensor], Optional[torch.Tensor], Optional[torch.Tensor]]:
-        """
-        Processes and fuses features from all modalities.
-
-        Parameters
-        ----------
-        molecule_raw_2d_features : Optional[torch.Tensor]
-            Raw 2D molecule features.
-        molecule_raw_3d_features : Optional[torch.Tensor]
-            Raw 3D molecule features.
-        protein_raw_features : Optional[torch.Tensor]
-            Raw protein features.
-
-        Returns
-        -------
-        Tuple[Optional[torch.Tensor], Optional[torch.Tensor], Optional[torch.Tensor]]
-            A tuple containing the projected tokens for 2D molecule, 3D molecule,
-            and protein modalities, respectively. Each element has a shape of
-            (batch_size, num_queries, target_hidden_size) or is `None`.
-        """
         lightweight_tokens_2d = self.tokenizer_2d(molecule_raw_2d_features)
         lightweight_tokens_3d = self.tokenizer_3d(molecule_raw_3d_features)
         lightweight_tokens_protein = self.tokenizer_protein(protein_raw_features)
@@ -531,7 +579,6 @@ class FeatureFuser(nn.Module):
             projected_3d_tokens,
             projected_protein_tokens,
         )
-
 
 class HMEPreTrainedModel(PreTrainedModel):
     """

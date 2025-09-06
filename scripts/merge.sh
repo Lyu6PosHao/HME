@@ -72,7 +72,6 @@ merge "${CHECKPOINTS_DIR}/HME_comprehension-pretrain-s2_merged" \
       "${CHECKPOINTS_DIR}/HME_captioning"
 
 
-
 merge "${BASE_MODEL_PATH}" \
       "${CHECKPOINTS_DIR}/HME_pocket-based-ligand-generation_pretrain" \
       "pdbbind_reg"

@@ -25,7 +25,7 @@ mkdir -p "$OUTPUT_DIR"
 cp "$0" "${OUTPUT_DIR}/" # Save a copy of the script
 
 # Set CUDA device and launch inference
-CUDA_VISIBLE_DEVICES=${GPU_ID} torchrun --nproc_per_node=1 --master_port=29503 infer.py \
+CUDA_VISIBLE_DEVICES=${GPU_ID} torchrun --nproc_per_node=1 --master_port=29503 -m hme.infer \
     --model_name_or_path "${MODEL_PATH}" \
     --max_length "${MAX_LENGTH}" \
     --data_path "${DATA_PATH}" \

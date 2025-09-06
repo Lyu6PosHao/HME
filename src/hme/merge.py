@@ -8,7 +8,7 @@ from typing import Optional
 from dataclasses import dataclass, field
 import torch
 from peft import PeftModel
-from util import load_hme, set_seed
+from hme.util import load_hme, set_seed
 
 
 def merge_lora_model(model_args: "ModelArguments", data_args: "DataArguments") -> None:
@@ -43,7 +43,7 @@ def merge_lora_model(model_args: "ModelArguments", data_args: "DataArguments") -
     set_seed(42)
     print("--- Loading Base Model and Tokenizer ---")
     model, tokenizer, _, _ = load_hme(
-        model_args, data_args=data_args, add_fr_vocab=True
+        model_args, data_args, add_frg_vocab=True
     )
     print(f"--- Loading PEFT Adapter from {model_args.peft_model_path} ---")
     model = PeftModel.from_pretrained(model, model_args.peft_model_path)

@@ -57,7 +57,7 @@ download "GreatCaptainNemo/HME_pocket-based-ligand-generation" "HME_pocket-based
 # NOTE: This download will fail if you have not been granted access on Hugging Face.
 # You must also be logged in via `huggingface-cli login`.
 echo "[9/9] Downloading: Meta-Llama-3-8B-Instruct (Requires Access)"
-echo "        Please ensure you have requested access at https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct"
+echo "        Please ensure you have requested access at https://huggingface.co/meta-llama/Meta-Llama-3-8B-Instruct . And you should also be logged in via `huggingface-cli login"
 download "meta-llama/Meta-Llama-3-8B-Instruct" "Meta-Llama-3-8B-Instruct"
 
 

@@ -258,9 +258,20 @@ def load_hme(
     if os.path.exists(os.path.join(checkpoint_path, "feature_fuser.pth")):
         # --- Scenario 1: Loading a pre-trained HME model ---
         logging.info("Found feature_fuser.pth. Loading as a pre-trained HME model.")
-        config = HMEConfig.from_pretrained(checkpoint_path)
+        config = HMEConfig(
+            text_config=language_model.config,
+            molecule_2d_hidden_size=300,
+            molecule_3d_hidden_size=512,
+            protein_hidden_size=128,
+            ignore_index=-100,
+            modal_padding=-100,
+            projector_hidden_act="gelu",
+            protein_token_index=tokenizer.convert_tokens_to_ids("<protein>"),
+            molecule_2d_token_index=tokenizer.convert_tokens_to_ids("<molecule_2d>"),
+            molecule_3d_token_index=tokenizer.convert_tokens_to_ids("<molecule_3d>"),
+        )
 
-        if dataargs is not None and "_reg" in dataargs.task_type:
+        if dataargs is not None and dataargs.task_type is not None and "_reg" in dataargs.task_type:
             model = HMEForSequenceRegression(config, language_model)
             model.feature_fuser.load_state_dict(
                 torch.load(os.path.join(checkpoint_path, "feature_fuser.pth"))
@@ -268,6 +279,15 @@ def load_hme(
             if os.path.exists(os.path.join(checkpoint_path, "regression_head.pth")):
                 model.regression_head.load_state_dict(
                     torch.load(os.path.join(checkpoint_path, "regression_head.pth"))
+                )
+        elif dataargs is not None and dataargs.task_type is not None and "_cls" in dataargs.task_type:
+            model = HMEForSequenceClassification(config, language_model)
+            model.feature_fuser.load_state_dict(
+                torch.load(os.path.join(checkpoint_path, "feature_fuser.pth"))
+            )
+            if os.path.exists(os.path.join(checkpoint_path, "classification_head.pth")):
+                model.classification_head.load_state_dict(
+                    torch.load(os.path.join(checkpoint_path, "classification_head.pth"))
                 )
         else:  # Default to conditional generation
             model = HMEForConditionalGeneration(config, language_model)
@@ -307,8 +327,11 @@ def load_hme(
             molecule_3d_token_index=tokenizer.convert_tokens_to_ids("<molecule_3d>"),
         )
 
-        if dataargs is not None and ("_reg" in dataargs.task_type):
+
+        if dataargs is not None and dataargs.task_type is not None and ("_reg" in dataargs.task_type):
             model = HMEForSequenceRegression(config, language_model)
+        elif dataargs is not None and dataargs.task_type is not None and "_cls" in dataargs.task_type:
+            model = HMEForSequenceClassification(config, language_model)
         else:  # Default to conditional generation
             model = HMEForConditionalGeneration(config, language_model)
             model.generation_config.max_new_tokens = 512

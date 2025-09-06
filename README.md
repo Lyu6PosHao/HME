@@ -30,6 +30,7 @@ cd HME
 # 2. Create and activate a conda environment
 conda create -n hme python=3.10
 conda activate hme
+conda install -c nvidia cuda-compiler
 
 # 3. Install the package in editable mode
 pip install -e .
