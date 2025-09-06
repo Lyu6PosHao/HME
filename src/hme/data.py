@@ -141,7 +141,6 @@ class HMEDataset(Dataset):
 
         if self.emb_dict_mol is not None or self.emb_dict_protein is not None:
             print(
-                f"Warning: Removed {removed} samples from the dataset because of missing or None embeddings. "
                 f"Now the length of the dataset is {len(self.json_list)}"
             )
 

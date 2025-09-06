@@ -87,16 +87,17 @@ def get_frg_from_one_smiles(
         - The canonicalized SMILES string (or None on failure).
         - The list of raw tokenized molecule objects (or None on failure).
     """
-    # Import locally as it's a specific dependency for this function
+
     from hme.psvae.mol_bpe import Tokenizer
 
     mol_tokenizer = Tokenizer(vocab_file)
     try:
         can_smiles = Chem.CanonSmiles(smiles)
         mol_list = mol_tokenizer.tokenize(can_smiles)
-    except Exception:
+    except Exception as e:
         if verbose:
-            print(f"An error occurred when getting fragments from SMILES: {smiles}")
+            print(f"An error occurred when getting fragments from SMILES: {smiles}"
+                  f" Error: {e}")
         return "", smiles, None
 
     if not isinstance(mol_list, list):

@@ -1,416 +1,437 @@
 #!/usr/bin/python
 # -*- coding:utf-8 -*-
 """
-This script implements a Graph-based Byte Pair Encoding (BPE) algorithm to
-extract principal subgraphs from a molecule corpus and generate a vocabulary.
-
-The main entry point `Graph_BPE_to_get_vocab` drives the process. Other classes
-and functions, such as `Tokenizer`, can be imported and used by other scripts.
+Graph-based BPE (Byte Pair Encoding) for molecule subgraph extraction.
+Main function: generate vocab; auxiliary functions are used in other scripts.
 """
-import argparse
-import json
-import multiprocessing as mp
-from typing import Any, Dict, List, Tuple
+import sys
+sys.path.append("/home/lvliuzhenghao/llzh/LightMoLlama/psvae")
 
-from rdkit import Chem
+import json
+from copy import copy
+import argparse
+import multiprocessing as mp
 from tqdm import tqdm
 
-from chem_utils import MAX_VALENCE, cnt_atom, get_submol, mol2smi, smi2mol
-from logger import print_log
-from molecule import Molecule
-
-# --- Classes for Principal Subgraph Extraction ---
+from hme.psvae.chem_utils import smi2mol, mol2smi, get_submol
+from hme.psvae.chem_utils import cnt_atom, MAX_VALENCE
+from hme.psvae.logger import print_log
+from hme.psvae.molecule import Molecule
+import selfies as sf
+from rdkit import Chem
 
 
 class MolInSubgraph:
-    """
-    A class to manage a molecule and its evolving subgraphs during BPE.
+    """Utility class for principal subgraph extraction from a molecule."""
 
-    This class starts by treating each atom as a separate subgraph and iteratively
-    merges them based on frequency, tracking the state of the molecule's fragmentation.
+    def __init__(self, mol, kekulize=False):
+        """
+        Initialize a molecule wrapper for subgraph extraction.
 
-    Parameters
-    ----------
-    mol : Chem.Mol
-        The RDKit molecule object.
-    kekulize : bool, optional
-        Whether to kekulize the molecule, by default False.
-    """
-
-    def __init__(self, mol: Chem.Mol, kekulize: bool = False):
+        Args:
+            mol (RDKitMol): RDKit Mol object.
+            kekulize (bool): Whether to kekulize the molecule.
+        """
         self.mol = mol
         self.smi = mol2smi(mol)
         self.kekulize = kekulize
-        self.subgraphs: Dict[int, Dict[int, str]] = {}  # pid -> {atom_idx: symbol}
-        self.subgraphs_smis: Dict[int, str] = {}  # pid -> smi
+        self.subgraphs, self.subgraphs_smis = {}, {}
         for atom in mol.GetAtoms():
             idx, symbol = atom.GetIdx(), atom.GetSymbol()
             self.subgraphs[idx] = {idx: symbol}
             self.subgraphs_smis[idx] = symbol
+        self.inversed_index = {}
+        self.upid_cnt = len(self.subgraphs)
+        for aid in range(mol.GetNumAtoms()):
+            for key in self.subgraphs:
+                subgraph = self.subgraphs[key]
+                if aid in subgraph:
+                    self.inversed_index[aid] = key
+        self.dirty = True
+        self.smi2pids = {}
 
-        self.inversed_index: Dict[int, int] = {
-            aid: aid for aid in range(mol.GetNumAtoms())
-        }  # atom_idx -> pid
-        self.upid_cnt = mol.GetNumAtoms()  # Unique pid counter
+    def get_nei_subgraphs(self):
+        """
+        Find neighboring subgraphs and possible merges.
 
-        self._dirty = True  # Flag to indicate if neighbor info needs recalculation
-        self._smi2pids: Dict[str, List[Tuple[int, int]]] = (
-            {}
-        )  # Cache for smi -> [(pid1, pid2), ...]
-
-    def get_nei_subgraphs(self) -> Tuple[List[Dict[int, str]], List[Tuple[int, int]]]:
-        """Finds all potential new subgraphs by merging adjacent existing subgraphs."""
+        Returns:
+            tuple: (list of new subgraphs, list of pid pairs to merge)
+        """
         nei_subgraphs, merge_pids = [], []
-        for pid1 in self.subgraphs:
-            subgraph1 = self.subgraphs[pid1]
-            local_nei_pids = set()
-            for aid in subgraph1:
+        for key in self.subgraphs:
+            subgraph = self.subgraphs[key]
+            local_nei_pid = []
+            for aid in subgraph:
                 atom = self.mol.GetAtomWithIdx(aid)
                 for nei in atom.GetNeighbors():
                     nei_idx = nei.GetIdx()
-                    if nei_idx not in subgraph1 and nei_idx > aid:
-                        local_nei_pids.add(self.inversed_index[nei_idx])
-
-            for pid2 in local_nei_pids:
-                new_subgraph = self.subgraphs[pid1].copy()
-                new_subgraph.update(self.subgraphs[pid2])
+                    if nei_idx in subgraph or nei_idx > aid:
+                        continue
+                    local_nei_pid.append(self.inversed_index[nei_idx])
+            local_nei_pid = set(local_nei_pid)
+            for nei_pid in local_nei_pid:
+                new_subgraph = copy(subgraph)
+                new_subgraph.update(self.subgraphs[nei_pid])
                 nei_subgraphs.append(new_subgraph)
-                merge_pids.append((pid1, pid2))
+                merge_pids.append((key, nei_pid))
         return nei_subgraphs, merge_pids
+    
+    def get_nei_smis(self):
+        """
+        Get SMILES of all possible neighboring subgraphs.
 
-    def get_nei_smis(self) -> List[str]:
+        Returns:
+            list[str]: List of neighboring subgraph SMILES.
         """
-        Gets the SMILES of all potential new subgraphs, caching the results.
-        """
-        if self._dirty:
+        if self.dirty:
             nei_subgraphs, merge_pids = self.get_nei_subgraphs()
-            self._smi2pids = {}
+            nei_smis, self.smi2pids = [], {}
             for i, subgraph in enumerate(nei_subgraphs):
-                submol = get_submol(self.mol, list(subgraph.keys()), self.kekulize)
+                submol = get_submol(self.mol, list(subgraph.keys()), kekulize=self.kekulize)
                 smi = mol2smi(submol)
-                if smi not in self._smi2pids:
-                    self._smi2pids[smi] = []
-                self._smi2pids[smi].append(merge_pids[i])
-            self._dirty = False
-        return list(self._smi2pids.keys())
+                nei_smis.append(smi)
+                self.smi2pids.setdefault(smi, [])
+                self.smi2pids[smi].append(merge_pids[i])
+            self.dirty = False
+        else:
+            nei_smis = list(self.smi2pids.keys())
+        return nei_smis
 
-    def merge(self, smi: str) -> None:
+    def merge(self, smi):
         """
-        Merges subgraphs based on the most frequent neighboring SMILES pattern.
+        Merge subgraphs corresponding to a given SMILES.
 
-        If a given `smi` corresponds to a valid merge operation, the two participating
-        subgraphs are combined into a new one, and the old ones are removed.
-
-        Parameters
-        ----------
-        smi : str
-            The SMILES string of the subgraph pattern to merge.
+        Args:
+            smi (str): SMILES of the subgraph to merge.
         """
-        if self._dirty:
+        if self.dirty:
             self.get_nei_smis()
-
-        if smi in self._smi2pids:
-            merge_pids_list = self._smi2pids[smi]
-            for pid1, pid2 in merge_pids_list:
+        if smi in self.smi2pids:
+            merge_pids = self.smi2pids[smi]
+            for pid1, pid2 in merge_pids:
                 if pid1 in self.subgraphs and pid2 in self.subgraphs:
-                    # Combine subgraphs
                     self.subgraphs[pid1].update(self.subgraphs[pid2])
-                    new_pid = self.upid_cnt
-                    self.subgraphs[new_pid] = self.subgraphs[pid1]
-                    self.subgraphs_smis[new_pid] = smi
-
-                    # Update inverse index for all atoms in the new subgraph
-                    for aid in self.subgraphs[new_pid]:
-                        self.inversed_index[aid] = new_pid
-
-                    # Clean up old entries
-                    del self.subgraphs[pid1], self.subgraphs[pid2]
-                    del self.subgraphs_smis[pid1], self.subgraphs_smis[pid2]
+                    self.subgraphs[self.upid_cnt] = self.subgraphs[pid1]
+                    self.subgraphs_smis[self.upid_cnt] = smi
+                    for aid in self.subgraphs[pid2]:
+                        self.inversed_index[aid] = pid1
+                    for aid in self.subgraphs[pid1]:
+                        self.inversed_index[aid] = self.upid_cnt
+                    del self.subgraphs[pid1]
+                    del self.subgraphs[pid2]
+                    del self.subgraphs_smis[pid1]
+                    del self.subgraphs_smis[pid2]
                     self.upid_cnt += 1
-        self._dirty = True  # Mark as revised after a merge operation
+        self.dirty = True
 
-    def get_smis_subgraphs(self) -> List[Tuple[str, List[int]]]:
-        """Returns the final list of (SMILES, atom_indices) for the fragments."""
+    def get_smis_subgraphs(self):
+        """
+        Get current subgraphs with their atom indices.
+
+        Returns:
+            list[tuple[str, list[int]]]: (subgraph SMILES, atom indices).
+        """
         res = []
-        for pid, smi in self.subgraphs_smis.items():
-            idxs = list(self.subgraphs[pid].keys())
+        for pid in self.subgraphs_smis:
+            smi = self.subgraphs_smis[pid]
+            group_dict = self.subgraphs[pid]
+            idxs = list(group_dict.keys())
             res.append((smi, idxs))
         return res
 
 
-def freq_cnt(mol: MolInSubgraph) -> Tuple[Dict[str, int], "MolInSubgraph"]:
-    """Counts the frequency of neighboring subgraph patterns for a single molecule."""
+def freq_cnt(mol):
+    """
+    Count frequency of neighboring subgraphs for one molecule.
+
+    Args:
+        mol (MolInSubgraph): Molecule wrapper.
+
+    Returns:
+        tuple: (dict of SMILES frequency, updated molecule)
+    """
     freqs = {}
     nei_smis = mol.get_nei_smis()
     for smi in nei_smis:
-        freqs[smi] = freqs.get(smi, 0) + 1
+        freqs.setdefault(smi, 0)
+        freqs[smi] += 1
     return freqs, mol
 
 
-def graph_bpe(
-    fname: str, vocab_len: int, vocab_path: str, cpus: int, kekulize: bool
-) -> Tuple[List[str], Dict[str, List[Any]]]:
+def graph_bpe(fname, vocab_len, vocab_path, cpus, kekulize):
     """
-    Performs Graph BPE on a corpus of SMILES to generate a vocabulary.
+    Extract principal subgraphs using a BPE-like algorithm.
 
-    This function loads molecules, iteratively finds the most frequent subgraph
-    pattern, merges it, and repeats until the desired vocabulary size is reached.
+    Args:
+        fname (str): Path to molecule SMILES corpus.
+        vocab_len (int): Target vocabulary size.
+        vocab_path (str): Path to save vocabulary.
+        cpus (int): Number of CPU workers.
+        kekulize (bool): Whether to kekulize molecules.
 
-    Parameters
-    ----------
-    fname : str
-        Path to the SMILES corpus file (one SMILES per line).
-    vocab_len : int
-        The desired size of the vocabulary.
-    vocab_path : str
-        Path to save the generated vocabulary file.
-    cpus : int
-        Number of CPU cores to use for parallel processing.
-    kekulize : bool
-        Whether to kekulize molecules.
-
-    Returns
-    -------
-    Tuple[List[str], Dict[str, List[Any]]]
-        A tuple containing:
-        - A list of the selected subgraph SMILES in the vocabulary.
-        - A dictionary with details about each subgraph (atom count, frequency).
+    Returns:
+        tuple: (selected SMILES list, detail dict of [atom count, frequency])
     """
-    print_log(f"Loading mols from {fname} ...")
-    with open(fname, "r") as fin:
-        smis = [line.strip() for line in fin]
-
+    print_log(f'Loading mols from {fname} ...')
+    with open(fname, 'r') as fin:
+        smis = [line.strip() for line in fin.readlines()]
     mols = []
-    for smi in tqdm(smis, desc="Initializing molecules"):
+    for smi in tqdm(smis):
         try:
-            mol_obj = smi2mol(smi, kekulize)
-            if mol_obj:
-                mols.append(MolInSubgraph(mol_obj, kekulize))
+            mol = MolInSubgraph(smi2mol(smi, kekulize), kekulize)
+            mols.append(mol)
         except Exception:
-            print_log(f"Parsing {smi} failed. Skip.", level="ERROR")
+            print_log(f'Parsing {smi} failed. Skip.', level='ERROR')
 
-    selected_smis = list(MAX_VALENCE.keys())
-    details = {atom: [1, 0] for atom in selected_smis}  # smi -> [atom_count, freq]
+    selected_smis, details = list(MAX_VALENCE.keys()), {}
+    for atom in selected_smis:
+        details[atom] = [1, 0]
     for smi in smis:
         cnts = cnt_atom(smi, return_dict=True)
-        for atom, count in cnts.items():
-            if atom in details:
-                details[atom][1] += count
+        for atom in details:
+            if atom in cnts:
+                details[atom][1] += cnts[atom]
 
     add_len = vocab_len - len(selected_smis)
-    print_log(
-        f"Added {len(selected_smis)} atoms, {add_len} principal subgraphs to extract"
-    )
+    print_log(f'Added {len(selected_smis)} atoms, {add_len} principal subgraphs to extract')
+    pbar = tqdm(total=add_len)
+    pool = mp.Pool(cpus)
 
-    with mp.Pool(cpus) as pool:
-        with tqdm(total=add_len, desc="BPE progressing") as pbar:
-            while len(selected_smis) < vocab_len:
-                res_list = pool.map(freq_cnt, mols)
-                freqs, mols = {}, []
-                for freq, mol_state in res_list:
-                    mols.append(mol_state)
-                    for key, val in freq.items():
-                        freqs[key] = freqs.get(key, 0) + val
+    while len(selected_smis) < vocab_len:
+        res_list = pool.map(freq_cnt, mols)
+        freqs, mols = {}, []
+        for freq, mol in res_list:
+            mols.append(mol)
+            for key in freq:
+                freqs.setdefault(key, 0)
+                freqs[key] += freq[key]
 
-                if not freqs:
-                    print_log("No more patterns to merge. Stopping.", level="WARNING")
-                    break
+        max_cnt, merge_smi = 0, ''
+        for smi in freqs:
+            if freqs[smi] > max_cnt:
+                max_cnt, merge_smi = freqs[smi], smi
 
-                merge_smi = max(freqs, key=freqs.get)
-                max_cnt = freqs[merge_smi]
+        for mol in mols:
+            mol.merge(merge_smi)
+        if merge_smi in details:
+            continue
+        selected_smis.append(merge_smi)
+        details[merge_smi] = [cnt_atom(merge_smi), max_cnt]
+        pbar.update(1)
 
-                for mol in mols:
-                    mol.merge(merge_smi)
-
-                if merge_smi in details:
-                    continue
-                selected_smis.append(merge_smi)
-                details[merge_smi] = [cnt_atom(merge_smi), max_cnt]
-                pbar.update(1)
-
-    print_log("Sorting vocab by atom count...")
+    pbar.close()
+    print_log('sorting vocab by atom num')
     selected_smis.sort(key=lambda x: details[x][0], reverse=True)
-
-    with open(vocab_path, "w") as fout:
-        fout.write(json.dumps({"kekulize": kekulize}) + "\n")
-        for smi in selected_smis:
-            fout.write(f"{smi}\t{details[smi][0]}\t{details[smi][1]}\n")
-
+    pool.close()
+    with open(vocab_path, 'w') as fout:
+        fout.write(json.dumps({'kekulize': kekulize}) + '\n')
+        fout.writelines(list(map(lambda smi: f'{smi}\t{details[smi][0]}\t{details[smi][1]}\n', selected_smis)))
     return selected_smis, details
 
 
 class Tokenizer:
-    """A tokenizer to segment molecules into principal subgraphs based on a BPE vocabulary."""
+    """Subgraph-based tokenizer for molecules."""
 
-    def __init__(self, vocab_path: str):
-        with open(vocab_path, "r") as fin:
-            lines = fin.read().strip().split("\n")
+    def __init__(self, vocab_path):
+        """
+        Initialize the tokenizer with a given vocabulary.
+
+        Args:
+            vocab_path (str): Path to vocabulary file.
+        """
+        with open(vocab_path, 'r') as fin:
+            lines = fin.read().strip().split('\n')
         config = json.loads(lines[0])
-        self.kekulize = config["kekulize"]
+        self.kekulize = config['kekulize']
         lines = lines[1:]
-
-        self.vocab_dict: Dict[str, Tuple[int, int, int]] = {}
-        self.idx2subgraph: List[str] = []
-        self.subgraph2idx: Dict[str, int] = {}
+        
+        self.vocab_dict = {}
+        self.idx2subgraph, self.subgraph2idx = [], {}
+        self.max_num_nodes = 0
         for idx, line in enumerate(lines):
-            smi, atom_num, freq = line.strip().split("\t")
-            self.vocab_dict[smi] = (int(atom_num), int(freq), idx)
+            smi, atom_num, freq = line.strip().split('\t')
+            self.vocab_dict[smi] = (int(atom_num), int(freq), int(idx))
+            self.max_num_nodes = max(self.max_num_nodes, int(atom_num))
             self.subgraph2idx[smi] = len(self.idx2subgraph)
             self.idx2subgraph.append(smi)
-
-        # Add special tokens
-        self.pad, self.end = "<pad>", "<s>"
+        self.pad, self.end = '<pad>', '<s>'
         for smi in [self.pad, self.end]:
             self.subgraph2idx[smi] = len(self.idx2subgraph)
             self.idx2subgraph.append(smi)
-
-    def tokenize(self, mol: Union[str, Chem.Mol]) -> Optional[Union[List, Molecule]]:
+        self.bond_start = '<bstart>'
+        self.max_num_nodes += 2
+    
+    def tokenize(self, mol):
         """
-        Tokenizes a molecule into a `Molecule` object or a list of them.
+        Tokenize a molecule into subgraph-level representation.
 
-        The molecule is decomposed into principal subgraphs found in the vocabulary.
+        Args:
+            mol (str | RDKitMol): Molecule as SMILES or RDKit Mol.
 
-        Parameters
-        ----------
-        mol : Union[str, Chem.Mol]
-            The input molecule as a SMILES string or an RDKit Mol object.
-
-        Returns
-        -------
-        Optional[Union[List, Molecule]]
-            A `Molecule` object representing the tokenized graph. If the input SMILES
-            contains multiple disconnected fragments ('.'), a list of `Molecule` objects
-            is returned. Returns `None` for single-atom molecules.
+        Returns:
+            Molecule | list[Molecule] | None
         """
-        smiles = mol if isinstance(mol, str) else mol2smi(mol)
-        rdkit_mol = smi2mol(smiles, self.kekulize) if isinstance(mol, str) else mol
-
-        if not rdkit_mol or rdkit_mol.GetNumAtoms() <= 1:
+        smiles = mol
+        if isinstance(mol, str):
+            mol = smi2mol(mol, self.kekulize)
+        else:
+            smiles = mol2smi(mol)
+        rdkit_mol = mol
+        if rdkit_mol.GetNumAtoms() <= 1:
             return None
-        if "." in smiles:
-            fragments = smiles.split(".")
+        if '.' in smiles:
+            fragments = smiles.split('.')
             return [self.tokenize(frag) for frag in fragments]
-
-        mol_in_subgraph = MolInSubgraph(rdkit_mol, kekulize=self.kekulize)
+        mol = MolInSubgraph(mol, kekulize=self.kekulize)
         while True:
-            nei_smis = mol_in_subgraph.get_nei_smis()
-            max_freq, merge_smi = -1, ""
+            nei_smis = mol.get_nei_smis()
+            max_freq, merge_smi = -1, ''
             for smi in nei_smis:
                 if smi not in self.vocab_dict:
                     continue
                 freq = self.vocab_dict[smi][1]
                 if freq > max_freq:
                     max_freq, merge_smi = freq, smi
-
             if max_freq == -1:
                 break
-            mol_in_subgraph.merge(merge_smi)
-
-        res = mol_in_subgraph.get_smis_subgraphs()
+            mol.merge(merge_smi)
+        res = mol.get_smis_subgraphs()
+        aid2pid = {}
+        for pid, subgraph in enumerate(res):
+            _, aids = subgraph
+            for aid in aids:
+                aid2pid[aid] = pid
+        ad_mat = [[0 for _ in res] for _ in res]
+        for aid in range(rdkit_mol.GetNumAtoms()):
+            atom = rdkit_mol.GetAtomWithIdx(aid)
+            for nei in atom.GetNeighbors():
+                nei_id = nei.GetIdx()
+                i, j = aid2pid[aid], aid2pid[nei_id]
+                if i != j:
+                    ad_mat[i][j] = ad_mat[j][i] = 1
         group_idxs = [x[1] for x in res]
         return Molecule(rdkit_mol, group_idxs, self.kekulize)
 
-    def __call__(self, mol: Union[str, Chem.Mol]) -> Optional[Union[List, Molecule]]:
-        return self.tokenize(mol)
+    def idx_to_subgraph(self, idx):
+        """Convert index to subgraph SMILES."""
+        return self.idx2subgraph[idx]
+    
+    def subgraph_to_idx(self, subgraph):
+        """Convert subgraph SMILES to index."""
+        return self.subgraph2idx[subgraph]
+    
+    def pad_idx(self):
+        """Return padding token index."""
+        return self.subgraph2idx[self.pad]
+    
+    def end_idx(self):
+        """Return end token index."""
+        return self.subgraph2idx[self.end]
+    
+    def num_subgraph_type(self):
+        """Return number of subgraph types in the vocab."""
+        return len(self.idx2subgraph)
+    
+    def atom_pos_pad_idx(self):
+        """Return padding index for atom positions."""
+        return self.max_num_nodes - 1
+    
+    def atom_pos_start_idx(self):
+        """Return start index for atom positions."""
+        return self.max_num_nodes - 2
 
-    def __len__(self) -> int:
+    def __call__(self, mol):
+        return self.tokenize(mol)
+    
+    def __len__(self):
         return len(self.idx2subgraph)
 
 
-def remove_charge(mol: Chem.Mol) -> Chem.Mol:
-    """Removes formal charges from all atoms in a molecule."""
+def parse():
+    """Parse command-line arguments for Graph BPE vocab extraction."""
+    parser = argparse.ArgumentParser(description='Principal subgraph extraction with BPE')
+    parser.add_argument('--smiles', type=str, default='Cc1c(Cl)cccc1-n1c(SCCNS(C)(=O)=O)nc2ccccc2c1=O',
+                        help='Example molecule to tokenize')
+    parser.add_argument('--data', type=str, default='/remote-home1/lihao/llzhs/tools/reverse_design_datasets/smiles_for_graphBPE.txt',
+                        help='Path to molecule corpus')
+    parser.add_argument('--vocab_size', type=int, default=800, help='Vocabulary size')
+    parser.add_argument('--output', type=str, default='/remote-home1/lihao/llzhs/tools/reverse_design_datasets/vocab_1600.txt',
+                        help='Path to save vocabulary')
+    parser.add_argument('--workers', type=int, default=128, help='Number of CPU workers')
+    parser.add_argument('--kekulize', action='store_false',
+                        help='Kekulize molecules (replace aromatic bonds with alternating single/double bonds)')
+    return parser.parse_args()
+
+
+def Graph_BPE_to_get_vocab():
+    """Run the Graph BPE pipeline to extract vocabulary and test tokenization."""
+    args = parse()
+    graph_bpe(args.data, vocab_len=args.vocab_size, vocab_path=args.output,
+              cpus=args.workers, kekulize=args.kekulize)
+    tokenizer = Tokenizer(args.output)
+    print(f'Example: {args.smiles}')
+    mol = tokenizer.tokenize(args.smiles)
+    print('Tokenized mol:')
+    print(mol)
+    print('Reconstruct smiles to check correctness:')
+    if isinstance(mol, list):
+        smi = '.'.join([frag.to_smiles() for frag in mol])
+    else:
+        smi = mol.to_smiles()
+        mol.to_SVG('example.svg')
+    print(smi)
+    assert smi == args.smiles
+    print('Assertion test passed')
+
+
+def remove_charge(mol):
+    """
+    Neutralize formal charges in a molecule.
+
+    Args:
+        mol (RDKitMol): Input molecule.
+
+    Returns:
+        RDKitMol: Charge-neutral molecule.
+    """
     for atom in mol.GetAtoms():
         atom.SetFormalCharge(0)
     return mol
 
 
-def remove_chiral(mol: Chem.Mol) -> Chem.Mol:
-    """Removes all chiral information from a molecule."""
-    Chem.RemoveStereochemistry(mol)
+def remove_chiral(mol):
+    """
+    Remove chirality from a molecule.
+
+    Args:
+        mol (RDKitMol): Input molecule.
+
+    Returns:
+        RDKitMol: Molecule with unspecified chirality.
+    """
+    chirality = Chem.FindMolChiralCenters(mol)
+    for atom, _ in chirality:
+        mol.GetAtomWithIdx(atom).SetChiralTag(Chem.ChiralType.CHI_UNSPECIFIED)
     return mol
 
 
-def remove_radical_electrons(mol: Chem.Mol) -> Chem.Mol:
-    """Removes radical electrons from all atoms in a molecule."""
-    for atom in mol.GetAtoms():
-        atom.SetNumRadicalElectrons(0)
-    return mol
+def remove_radical_electrons(mol):
+    """
+    Remove radical electrons from a molecule.
+
+    Args:
+        mol (RDKitMol): Input molecule.
+
+    Returns:
+        RDKitMol: Molecule with zero radical electrons.
+    """
+    from rdkit.Chem.Descriptors import NumRadicalElectrons
+    from rdkit.Chem import RWMol
+    rwmol = RWMol(mol)
+    for at in rwmol.GetAtoms():
+        at.SetNumRadicalElectrons(0)
+    return rwmol.GetMol()
 
 
-def parse_args():
-    """Parses command-line arguments for the script."""
-    parser = argparse.ArgumentParser(
-        description="Principal subgraph extraction with BPE"
-    )
-    parser.add_argument(
-        "--data",
-        type=str,
-        required=True,
-        help="Path to the molecule corpus file (SMILES).",
-    )
-    parser.add_argument(
-        "--vocab_size", type=int, default=800, help="Desired size of the vocabulary."
-    )
-    parser.add_argument(
-        "--output",
-        type=str,
-        required=True,
-        help="Path to save the generated vocabulary.",
-    )
-    parser.add_argument(
-        "--workers",
-        type=int,
-        default=mp.cpu_count(),
-        help="Number of CPU cores to use.",
-    )
-    parser.add_argument(
-        "--kekulize",
-        action="store_true",
-        help="Kekulize molecules (replace aromatic with single/double bonds).",
-    )
-    return parser.parse_args()
-
-
-def Graph_BPE_to_get_vocab():
-    """Main function to run the graph BPE vocabulary generation process."""
-    args = parse_args()
-    graph_bpe(
-        args.data,
-        vocab_len=args.vocab_size,
-        vocab_path=args.output,
-        cpus=args.workers,
-        kekulize=args.kekulize,
-    )
-
-    print("\n--- Vocabulary Generation Complete ---")
-    print(f"Vocabulary saved to: {args.output}")
-
-    # --- Example Tokenization ---
-    print("\n--- Testing tokenizer with an example ---")
-    tokenizer = Tokenizer(args.output)
-    example_smiles = "Cc1c(Cl)cccc1-n1c(SCCNS(C)(=O)=O)nc2ccccc2c1=O"
-    print(f"Example SMILES: {example_smiles}")
-    tokenized_mol = tokenizer.tokenize(example_smiles)
-
-    if tokenized_mol:
-        print("Tokenized molecule object created.")
-        reconstructed_smi = (
-            ".".join([frag.to_smiles() for frag in tokenized_mol])
-            if isinstance(tokenized_mol, list)
-            else tokenized_mol.to_smiles()
-        )
-        print(f"Reconstructed SMILES: {reconstructed_smi}")
-        if Chem.CanonSmiles(reconstructed_smi) == Chem.CanonSmiles(example_smiles):
-            print("Assertion test passed: Reconstructed SMILES matches original.")
-        else:
-            print("Warning: Reconstructed SMILES does not match original.")
-    else:
-        print("Tokenization failed for the example SMILES.")
-
-
-if __name__ == "__main__":
-    import sys
-
-    # Add project-specific path only when running as a script
-    sys.path.append("../psvae")
+if __name__ == '__main__':
     Graph_BPE_to_get_vocab()
