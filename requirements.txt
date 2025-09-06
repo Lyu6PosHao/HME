@@ -12,3 +12,7 @@ pandas==1.4.0
 scipy==1.14.1
 sentencepiece==0.2.0
 protobuf==6.31.1
+huggingface-hub==0.32.2
+peft==0.15.1
+accelerate==1.7.0
+periodictable==2.0.2
