@@ -36,6 +36,8 @@ CUDA_VISIBLE_DEVICES=${GPU_ID} torchrun --nproc_per_node=1 --master_port=29504 i
     --emb_dict_protein "${PROTEIN_EMB_PATH}" \
     --output_path "${OUTPUT_PATH}" \
     --do_sample True \
-    --temperature 1.0
+    --temperature 1.0 \
+    --top_p 0.95 \
+    --top_k 50 \
 
 echo "Inference complete. Results saved to ${OUTPUT_PATH}"

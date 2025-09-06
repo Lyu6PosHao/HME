@@ -15,11 +15,10 @@ MODULES_TO_SAVE="feature_fuser,regression_head"
 
 # 2. Data and Task Settings
 TASK_TYPE="pdbbind_reg"
-TASK_NAME_SUFFIX="pdbv2016_refined" # For naming the output directory
 DATA_TYPE="1d,2d,3d"
-TRAIN_DATA_PATH="/path/to/your/datasets/pdbbind_v2016/.../index_except-crossdockedtest_refined-train.json"
-MOL_EMB_PATH="/path/to/your/datasets/pdbbind_v2016/.../index_except-crossdockedtest.json.cfm.pt"
-PROTEIN_EMB_PATH="/path/to/your/datasets/pdbbind_v2016/.../index_except-crossdockedtest.protein-emb.pt"
+TRAIN_DATA_PATH="../datasets/PDBBindv2016/index_except-crossdockedtest_refined-train.json"
+MOL_EMB_PATH="../datasets/PDBBindv2016/index_except-crossdockedtest.json.cfm.pt"
+PROTEIN_EMB_PATH="../datasets/PDBBindv2016/index_except-crossdockedtest.protein-emb.pt"
 
 # 3. Training Hyperparameters
 MAX_LENGTH=300
@@ -34,13 +33,13 @@ MASTER_PORT=29501
 
 # --- Execution ---
 # Set paths
-BASE_MODEL_PATH="/path/to/your/models/${BASE_MODEL}"
-OUTPUT_DIR="../checkpoints/${BASE_MODEL}_${TASK_NAME_SUFFIX}_${TASK_TYPE}"
+BASE_MODEL_PATH="../checkpoints/${BASE_MODEL}"
+OUTPUT_DIR="../checkpoints/HME_pocket-based-ligand-generation_pretrain"
 mkdir -p "$OUTPUT_DIR"
 cp "$0" "${OUTPUT_DIR}/"
 
 # Launch training with DeepSpeed
-deepspeed --include "localhost:${GPUS}" --master_port ${MASTER_PORT} --module run_regression.py \
+deepspeed --include "localhost:${GPUS}" --master_port ${MASTER_PORT} --module hme.run_regression \
     --deepspeed ds_zero2_no_offload.json \
     --model_name_or_path "${BASE_MODEL_PATH}" \
     --output_dir "${OUTPUT_DIR}" \

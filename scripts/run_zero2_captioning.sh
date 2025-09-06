@@ -7,7 +7,7 @@ export TOKENIZERS_PARALLELISM=True
 
 # --- Configuration ---
 # 1. Model and LoRA Settings
-BASE_MODEL="Meta-Llama-3-8B-Instruct_pretrain_merged_pretrain-s2_merged"
+BASE_MODEL="HME_comprehension-pretrain-s2_merged"
 LORA_R=16
 LORA_ALPHA=32
 LORA_TARGETS="q_proj,v_proj,k_proj,o_proj,up_proj,gate_proj,down_proj"
@@ -33,8 +33,8 @@ MASTER_PORT=29501
 
 # --- Execution ---
 # Set paths
-BASE_MODEL_PATH="/path/to/your/models/${BASE_MODEL}"
-OUTPUT_DIR="../checkpoints/${BASE_MODEL}_${TASK_TYPE}"
+BASE_MODEL_PATH="../checkpoints/${BASE_MODEL}"
+OUTPUT_DIR="../checkpoints/HME_captioning"
 mkdir -p "$OUTPUT_DIR"
 cp "$0" "${OUTPUT_DIR}/"
 

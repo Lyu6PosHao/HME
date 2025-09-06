@@ -33,8 +33,8 @@ MASTER_PORT=29500
 
 # --- Execution ---
 # Set paths
-BASE_MODEL_PATH="/path/to/your/models/${BASE_MODEL}"
-OUTPUT_DIR="../checkpoints/${BASE_MODEL}_${TASK_TYPE}"
+BASE_MODEL_PATH="../checkpoints/${BASE_MODEL}"
+OUTPUT_DIR="../checkpoints/HME_comprehension-pretrain"
 mkdir -p "$OUTPUT_DIR"
 cp "$0" "${OUTPUT_DIR}/"
 

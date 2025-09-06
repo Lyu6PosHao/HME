@@ -8,7 +8,7 @@ export TOKENIZERS_PARALLELISM=True
 
 # --- Configuration ---
 # 1. Model and LoRA Settings
-BASE_MODEL="Meta-Llama-3-8B-Instruct_pdbv2016_refined_x_pdbbind_reg_merged"
+BASE_MODEL="HME_pocket-based-ligand-generation_pretrain_merged"
 LORA_R=32
 LORA_ALPHA=64
 LORA_TARGETS="q_proj,v_proj,k_proj,o_proj,up_proj,gate_proj,down_proj"
@@ -17,9 +17,9 @@ MODULES_TO_SAVE="feature_fuser,lm_head"
 # 2. Data and Task Settings
 TASK_TYPE="textprotein2frgsmi"
 DATA_TYPE="1d,frg"
-TRAIN_DATA_PATH="/path/to/your/datasets/crossdocked2020/crossdocked_pocket10_train.json"
+TRAIN_DATA_PATH="../datasets/CrossDocked2020/crossdocked_pocket10_train.json"
 MOL_EMB_PATH="none"
-PROTEIN_EMB_PATH="/path/to/your/datasets/crossdocked2020/crossdocked_pocket10_train.pt"
+PROTEIN_EMB_PATH="../datasets/CrossDocked2020/crossdocked_pocket10_train.pt"
 
 # 3. Training Hyperparameters
 MAX_LENGTH=200
@@ -29,13 +29,13 @@ GRAD_ACCUMULATION=9
 LEARNING_RATE=5e-5
 
 # 4. Infrastructure Settings
-GPUS="4,5,6,7"
+GPUS="0,1,2,3"
 MASTER_PORT=29500
 
 # --- Execution ---
 # Set paths
-BASE_MODEL_PATH="/path/to/your/models/${BASE_MODEL}"
-OUTPUT_DIR="../checkpoints/${BASE_MODEL}_${TASK_TYPE}"
+BASE_MODEL_PATH="../checkpoints/${BASE_MODEL}"
+OUTPUT_DIR="../checkpoints/HME_pocket-based-ligand-generation_merged"
 mkdir -p "$OUTPUT_DIR"
 cp "$0" "${OUTPUT_DIR}/"
 
