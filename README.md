@@ -16,7 +16,13 @@ This repository contains the official implementation for the paper **"Navigating
 
 ## 📖 Getting Started: From Setup to Inference
 
-Follow this checklist to get HME running.
+Follow this checklist to get HME running. 
+
+Once successfully configuring the dataset and model, you can reproduce the results on the test set using our `scripts/eval_*.sh` scripts, or check out the model run examples in the `notebooks/` directory.
+
+### Hardware
+
+It is recommended to run inference tests on **one NVIDIA GPU with at least 24GB of memory**. The model itself occupies about **16GB** of GPU memory, while the additional memory required during inference depends on the context length.
 
 ### Installation
 
@@ -92,7 +98,7 @@ This will create several merged models in the `checkpoints/` directory. The merg
 
 ### Run Evaluation
 
-You are now ready to run inference. Use the provided scripts in the `scripts/` directory.
+You are now ready to run inference. Use the provided scripts in the `scripts/` directory. You can also run examples in the `notebooks/` directory.
 
 Example: Evaluate on Molecular Captioning
 ```bash
