@@ -30,6 +30,11 @@ dependencies = [
     "peft==0.15.1",
     "accelerate==1.7.0",
     "periodictable==2.0.2",
+    "ipykernel==6.29.5",
+    "nltk==3.9.1",
+    "rouge_score==0.1.2",
+    "fcd_torch==1.0.7",
+    "Levenshtein==0.27.1",
 ]
 
 [tool.setuptools.packages.find]

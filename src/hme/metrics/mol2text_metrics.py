@@ -50,7 +50,7 @@ def get_out_gt_from_line(file_path: str, line: str) -> Tuple[str, str]:
     return out, gt
 
 
-def evaluate(
+def eval_mol2text(
     input_file: str,
     text_model: str = "allenai/scibert_scivocab_uncased",
     text_trunc_length: int = 512,
@@ -131,7 +131,7 @@ if __name__ == "__main__":
     # Example usage:
     # Ensure the input file path is correct.
     try:
-        results = evaluate(input_file="result.jsonl")
+        results = eval_mol2text(input_file="result.jsonl")
         # Format results for easy copying (e.g., into a LaTeX table)
         formatted_results = [f"{item * 100:.2f}" for item in results]
         print("&".join(formatted_results))

@@ -88,7 +88,7 @@ You can comment out certain parts of the shell script to download only a subset 
 bash merge_models.sh
 ```
 
-This will create several downstream models in the `checkpoints/` directory.
+This will create several merged models in the `checkpoints/` directory. The merged models will automatically have the suffix `_merged` appended to their original adapter model names for easier identification.
 
 ### Run Evaluation
 
@@ -99,8 +99,10 @@ Example: Evaluate on Molecular Captioning
 bash eval_captioning.sh
 ```
 Predictions will be saved in the `results/` directory. You can then use our metric scripts to score the output:
-```bash
-python -m hme.metrics.mol2text_metrics --prediction_file ./results/captioning_predictions.json
+```python
+from hme.metrics.mol2text_metrics import eval_mol2text
+performance=eval_mol2text('../results/HME_captioning_merged/result.jsonl')
+print(performance)  #(BLEU-2, BLEU-4, ROUGE-1, ROUGE-2, ROUGE-L, METEOR) will be printed.
 ```
 
 ---
@@ -113,6 +115,23 @@ For detailed instructions on preparing data for training and running the trainin
 
 ---
 
+## 🏛️ Model Zoo
+
+We provide several pre-trained adapters, each fine-tuned for specific tasks. The `merge_models.sh` script automates their creation. Here is a summary of the key models and their training hierarchy:
+
+| Adapter Checkpoint                                | Base Model for Merging                             | Primary Task                            |
+| ------------------------------------------------- | -------------------------------------------------- | --------------------------------------- |
+| `HME_comprehension-pretrain`                      | Llama-3 Base                                       | Foundational molecular understanding (S1) |
+| `HME_comprehension-pretrain-s2`                   | `HME_comprehension-pretrain_merged`                | Continued pre-training (S2)             |
+|                                                   |                                                    |                                         |
+| `HME_general-qa`                                  | `HME_comprehension-pretrain_merged`                | General Molecular Q&A                   |
+| `HME_property-qa-1` / `-2`                        | `HME_comprehension-pretrain_merged`                | Molecular Property Q&A                  |
+| `HME_captioning`                                  | `HME_comprehension-pretrain-s2_merged`             | Molecular Captioning                    |
+|                                                   |                                                    |                                         |
+| `HME_pocket-based-ligand-generation_pretrain`     | Llama-3 Base                                       | Ligand Scoring (Regression)             |
+| `HME_pocket-based-ligand-generation`              | `HME_pocket-based-ligand-generation_pretrain_merged` | Conditional Ligand Generation           |
+
+This table helps you understand the dependencies if you choose to customize the `merge_models.sh` script.
 
 ## Citation
 
