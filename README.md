@@ -187,7 +187,7 @@ print("Evaluation complete.")
 
 #### 4. Pocket-based Ligand Generation
 
-Please refer to the evaluation codes of TargetDiff (https://github.com/guanjq/targetdiff?tab=readme-ov-file#evaluation)
+For pocket-based ligand generation, we follow the evaluation codes from TargetDiff (https://github.com/guanjq/targetdiff?tab=readme-ov-file#evaluation).
 
 
 ## Citation
