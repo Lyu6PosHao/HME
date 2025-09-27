@@ -75,7 +75,7 @@ This will generate `.pt` feature files alongside your `.json` files.
 
 ### Download Models
 
-We provide a script to download all HME adapter checkpoints and the Llama-3 base model from Hugging Face. You can comment out certain parts of the shell script to download only a subset of the models.
+We provide a script to download HME adapter checkpoints and the Llama-3 base model from Hugging Face. You can comment out certain parts of the shell script to download only a subset of the models.
 
 ```bash
 mkdir -p checkpoints
@@ -185,6 +185,9 @@ performance = eval_smi_generation(prediction_file)
 print("Evaluation complete.")
 ```
 
+#### 4. Pocket-based Ligand Generation
+
+Please refer to the evaluation codes of TargetDiff (https://github.com/guanjq/targetdiff?tab=readme-ov-file#evaluation)
 
 
 ## Citation
