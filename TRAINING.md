@@ -89,6 +89,7 @@ bash scripts/run_zero2_general-qa.sh
 | `run_zero2_captioning.sh` | Stage 2 checkpoint |
 | `run_zero2_property-qa-1.sh` | Stage 1 checkpoint |
 | `run_zero2_property-qa-2.sh` | Stage 1 checkpoint |
+| `run_zero2_general-qa.sh` | Stage 1 checkpoint |
 | … | … |
 
 ---
