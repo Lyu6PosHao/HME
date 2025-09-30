@@ -28,23 +28,23 @@ download() {
 }
 
 # --- HME Adapter Checkpoints ---
-# echo "[1/9] Downloading: HME_comprehension-pretrain"
-# download "GreatCaptainNemo/HME_comprehension-pretrain" "HME_comprehension-pretrain"
+echo "[1/9] Downloading: HME_comprehension-pretrain"
+download "GreatCaptainNemo/HME_comprehension-pretrain" "HME_comprehension-pretrain"
 
-# echo "[2/9] Downloading: HME_comprehension-pretrain-s2"
-# download "GreatCaptainNemo/HME_comprehension-pretrain-s2" "HME_comprehension-pretrain-s2"
+echo "[2/9] Downloading: HME_comprehension-pretrain-s2"
+download "GreatCaptainNemo/HME_comprehension-pretrain-s2" "HME_comprehension-pretrain-s2"
 
-# echo "[3/9] Downloading: HME_captioning"
-# download "GreatCaptainNemo/HME_captioning" "HME_captioning"
+echo "[3/9] Downloading: HME_captioning"
+download "GreatCaptainNemo/HME_captioning" "HME_captioning"
 
-# echo "[4/9] Downloading: HME_general-qa"
-# download "GreatCaptainNemo/HME_general-qa" "HME_general-qa"
+echo "[4/9] Downloading: HME_general-qa"
+download "GreatCaptainNemo/HME_general-qa" "HME_general-qa"
 
 echo "[5/9] Downloading: HME_property-qa-1"
 download "GreatCaptainNemo/HME_property-qa-1" "HME_property-qa-1"
 
-# echo "[6/9] Downloading: HME_property-qa-2"
-# download "GreatCaptainNemo/HME_property-qa-2" "HME_property-qa-2"
+echo "[6/9] Downloading: HME_property-qa-2"
+download "GreatCaptainNemo/HME_property-qa-2" "HME_property-qa-2"
 
 echo "[7/9] Downloading: HME_pocket-based-ligand-generation_pretrain"
 download "GreatCaptainNemo/HME_pocket-based-ligand-generation_pretrain" "HME_pocket-based-ligand-generation_pretrain"
