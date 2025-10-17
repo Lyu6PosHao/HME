@@ -245,7 +245,8 @@ def load_hme(
     language_model = AutoModelForCausalLM.from_pretrained(
         modelargs.model_name_or_path,
         torch_dtype=torch.bfloat16,
-        attn_implementation="flash_attention_2",
+        attn_implementation="sdpa",
+        #attn_implementation="flash_attention_2", #if flash_attn installed
         device_map={"": int(os.environ.get("LOCAL_RANK") or 0)},
     )
 
