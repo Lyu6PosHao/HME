@@ -7,6 +7,7 @@ import numpy as np
 import torch
 from rdkit import RDLogger, Chem
 from rdkit.Chem import AllChem, CanonSmiles
+from rdkit.Chem.MolStandardize import rdMolStandardize
 from tqdm import tqdm
 from unimol_tools import UniMolRepr
 
@@ -215,6 +216,158 @@ def get_2d3d_tensors(file_path_with_cfm: str) -> None:
     torch.save(molecule_dict, output_path)
     print(f"Saved 2D & 3D features for {len(molecule_dict)} molecules to {output_path}")
 
+# The curation procedures implemented here are based on and derived from the methodology proposed in 
+# "Trust, but Verify: On the Importance of Chemical Structure Curation in Cheminformatics and QSAR Modeling Research"
+class ChemicalCuration:
+    """
+    Implements a comprehensive chemical structure curation pipeline following the
+    principles outlined in:
+
+        "Trust, but Verify: On the Importance of Chemical Structure Curation in
+        Cheminformatics and QSAR Modeling Research"
+
+    The pipeline performs the essential curation steps required for reliable
+    downstream molecular modeling, including:
+        - Organic compound filtering
+        - Metal/organometallic filtration
+        - Largest-fragment selection (desalting)
+        - Functional group normalization
+        - Charge neutralization
+        - Valence validation
+        - Aromaticity normalization
+        - Canonical tautomer selection
+        - Hydrogen representation normalization
+
+    All steps are implemented with RDKit's MolStandardize and chemistry utilities.
+    """
+
+    def __init__(self) -> None:
+        """Initializes RDKit MolStandardize tools."""
+        self.largest_fragment = rdMolStandardize.LargestFragmentChooser()
+        self.normalizer = rdMolStandardize.Normalizer()
+        self.uncharger = rdMolStandardize.Uncharger()
+        self.tautomer_enum = rdMolStandardize.TautomerEnumerator()
+
+        # A simple but robust metal list sufficient for curation/QSAR
+        self.metal_atomic_nums = {
+            3, 4, 11, 12, 13, 19, 20,
+            21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+            31, 37, 38, 39, 40, 47, 48, 49, 50,
+            55, 56, 57, 72, 73, 74, 75, 76, 77, 78, 79
+        }
+
+    # ----------------------------- Utility Methods -----------------------------
+
+    def is_organic(self, mol: Chem.Mol) -> bool:
+        """Checks if a molecule contains carbon (minimum requirement for organic)."""
+        return any(atom.GetAtomicNum() == 6 for atom in mol.GetAtoms())
+
+    def has_metal(self, mol: Chem.Mol) -> bool:
+        """Detects whether the molecule contains metal atoms."""
+        return any(atom.GetAtomicNum() in self.metal_atomic_nums for atom in mol.GetAtoms())
+
+    def has_valence_problem(self, mol: Chem.Mol) -> bool:
+        """Uses RDKit sanitization to detect valence issues."""
+        try:
+            Chem.SanitizeMol(mol)
+            return False
+        except Exception:
+            return True
+
+    # ------------------------------ Core Workflow ------------------------------
+
+    def process(self, smiles: str) -> Tuple[Optional[Chem.Mol], str]:
+        """
+        Executes the complete chemical curation pipeline.
+
+        Parameters
+        ----------
+        smiles : str
+            Input SMILES string.
+
+        Returns
+        -------
+        Tuple[Optional[Chem.Mol], str]
+            - The curated RDKit molecule (or None if rejected).
+            - A status message describing success or rejection reason.
+        """
+        mol = Chem.MolFromSmiles(smiles)
+        if mol is None:
+            return None, "Invalid SMILES"
+
+        # --- Step 1: Reject inorganic molecules ---
+        if not self.is_organic(mol):
+            return None, "Rejected: Inorganic"
+
+        # --- Step 2: Reject organometallic compounds ---
+        if self.has_metal(mol):
+            return None, "Rejected: Contains metal"
+
+        # --- Step 3: Select the largest organic fragment (desalting) ---
+        try:
+            mol = self.largest_fragment.choose(mol)
+        except Exception:
+            return None, "Error during desalting"
+
+        # --- Step 4: Functional group normalization ---
+        mol = self.normalizer.normalize(mol)
+
+        # --- Step 5: Charge neutralization ---
+        mol = self.uncharger.uncharge(mol)
+
+        # --- Step 6: Aromaticity normalization ---
+        try:
+            Chem.Kekulize(mol, clearAromaticFlags=True)
+        except Exception:
+            pass  # Some structures cannot be kekulized
+
+        Chem.SetAromaticity(mol)
+
+        # --- Step 7: Hydrogen normalization ---
+        mol = Chem.AddHs(mol)
+        mol = Chem.RemoveHs(mol)
+
+        # --- Step 8: Tautomer canonicalization ---
+        mol = self.tautomer_enum.Canonicalize(mol)
+
+        # --- Step 9: Valence validation ---
+        if self.has_valence_problem(mol):
+            return None, "Rejected: Valence error"
+
+        return mol, "Success"
+
+
+def curate_smiles_list(smiles_list: List[str]) -> Dict[str, str]:
+    """
+    Applies the full curation pipeline to a list of SMILES strings and removes duplicates.
+
+    Deduplication uses InChIKey, which is the strongest duplicate detector for curated structures.
+
+    Parameters
+    ----------
+    smiles_list : List[str]
+        Raw SMILES list (possibly noisy, uncurated).
+
+    Returns
+    -------
+    Dict[str, str]
+        Mapping from InChIKey → canonical cleaned SMILES.
+    """
+    curator = ChemicalCuration()
+    unique_mols: Dict[str, str] = {}
+
+    for smi in smiles_list:
+        mol, status = curator.process(smi)
+        if mol is None:
+            continue
+
+        key = Chem.MolToInchiKey(mol)
+        can_smi = Chem.MolToSmiles(mol, canonical=True, isomericSmiles=True)
+
+        if key not in unique_mols:
+            unique_mols[key] = can_smi
+
+    return unique_mols
 
 if __name__ == "__main__":
     # This should be set only when running the script directly.
