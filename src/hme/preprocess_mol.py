@@ -211,7 +211,7 @@ def get_2d3d_tensors(file_path_with_cfm: str) -> None:
             mol["molecule_raw_3d_features"] = None
 
     # --- Save Results ---
-    output_path = os.path.splitext(file_path_with_cfm)[0] + ".pt"
+    output_path = file_path_with_cfm + ".pt"
     molecule_dict = {mol["smiles"]: mol for mol in molecule_list}
     torch.save(molecule_dict, output_path)
     print(f"Saved 2D & 3D features for {len(molecule_dict)} molecules to {output_path}")

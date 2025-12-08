@@ -229,7 +229,7 @@ def eval_number(input_file: str, exclude_outliers: bool = True) -> List[float]:
     gt = {k: [] for k in gen.keys()}
     pattern = r"-?\d+\.\d+"  # Matches integers and floats
 
-    for line in tqdm(lines, desc=f"Processing {input_file}"):
+    for line in tqdm(lines, desc=f"Processing..."):
         item_gen, item_gt = get_out_gt_from_line(input_file, line)
         task_type, _ = must_find_task_type(item_gen, item_gt)
 

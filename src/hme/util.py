@@ -293,7 +293,7 @@ def load_hme(
         else:  # Default to conditional generation
             model = HMEForConditionalGeneration(config, language_model)
             model.feature_fuser.load_state_dict(
-                torch.load(os.path.join(checkpoint_path, "feature_fuser.pth"))
+                torch.load(os.path.join(checkpoint_path, "feature_fuser.pth"),weights_only=True)
             )
             model.generation_config.max_new_tokens = 512
             model.generation_config.do_sample = False
