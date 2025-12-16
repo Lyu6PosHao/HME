@@ -18,7 +18,7 @@ This repository contains the official implementation for the paper **"Navigating
 
 Follow this checklist to get HME running. 
 
-Once successfully configuring the dataset and model, you can reproduce the results on the test set using our `scripts/eval_*.sh` scripts, or check out the model run examples in the `notebooks/` directory.
+Once successfully configuring the dataset and model, you can reproduce the results on the test set using our `scripts/eval_*.sh` scripts, or check out the model run examples in the `tutorials/` directory.
 
 ### Hardware
 
