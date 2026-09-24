@@ -194,11 +194,13 @@ For pocket-based ligand generation, we follow the evaluation codes from TargetDi
 
 If you find our work useful, please cite our paper:
 ```bibtex
-@article{lv2024navigating,
-  title={Navigating Chemical-Linguistic Sharing Space with Heterogeneous Molecular Encoding},
-  author={Lv, Liuzhenghao and Li, Hao and Wang, Yu and Yan, Zhiyuan and Chen, Zijun and Lin, Zongying and Yuan, Li and Tian, Yonghong},
-  journal={arXiv preprint arXiv:2412.20888},
-  year={2024}
+@article{lv2026navigating,
+  title={Navigating chemical-linguistic sharing space with heterogeneous molecular encoding},
+  author={Lv, Liuzhenghao and Li, Hao and Wang, Yu and Chen, Zijun and Yan, Zhiyuan and Lin, Zongying and Liu, Yuyang and Yuan, Li and Tian, Yonghong},
+  journal={Nature Communications},
+  year={2026},
+  publisher={Nature Publishing Group UK London}
+}
 }
 ```
 
