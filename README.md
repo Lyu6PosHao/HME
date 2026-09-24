@@ -201,7 +201,6 @@ If you find our work useful, please cite our paper:
   year={2026},
   publisher={Nature Publishing Group UK London}
 }
-}
 ```
 
 ## Acknowledgements
